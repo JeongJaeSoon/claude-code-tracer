@@ -1,0 +1,1852 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Claude Code Tracer</title>
+
+  <!-- Fonts: JetBrains Mono for code, Plus Jakarta Sans for UI -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    /* ══════════════════════════════════════════════════════════════
+       CSS Variables & Theme System
+       ══════════════════════════════════════════════════════════════ */
+    :root {
+      /* Typography */
+      --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+
+      /* Spacing */
+      --space-xs: 4px;
+      --space-sm: 8px;
+      --space-md: 16px;
+      --space-lg: 24px;
+      --space-xl: 32px;
+      --space-2xl: 48px;
+
+      /* Border Radius */
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --radius-xl: 20px;
+
+      /* Transitions */
+      --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+      --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+      --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
+
+      /* Tool Colors (for flamegraph) */
+      --tool-bash: #10b981;
+      --tool-read: #3b82f6;
+      --tool-edit: #f59e0b;
+      --tool-write: #8b5cf6;
+      --tool-grep: #ec4899;
+      --tool-glob: #06b6d4;
+      --tool-task: #f97316;
+      --tool-web: #6366f1;
+    }
+
+    /* Dark Theme (Default) */
+    [data-theme="dark"] {
+      --bg-primary: #0a0a0c;
+      --bg-secondary: #111114;
+      --bg-tertiary: #18181c;
+      --bg-elevated: #1e1e24;
+      --bg-hover: #252530;
+      --bg-active: #2a2a38;
+
+      --border-subtle: rgba(255, 255, 255, 0.06);
+      --border-default: rgba(255, 255, 255, 0.1);
+      --border-strong: rgba(255, 255, 255, 0.15);
+
+      --text-primary: #f4f4f5;
+      --text-secondary: #a1a1aa;
+      --text-tertiary: #71717a;
+      --text-muted: #52525b;
+
+      --accent-primary: #6366f1;
+      --accent-primary-hover: #818cf8;
+      --accent-secondary: #22d3ee;
+
+      --success: #22c55e;
+      --warning: #eab308;
+      --error: #ef4444;
+      --info: #3b82f6;
+
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+      --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
+      --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.15);
+    }
+
+    /* Light Theme */
+    [data-theme="light"] {
+      --bg-primary: #fafafa;
+      --bg-secondary: #f4f4f5;
+      --bg-tertiary: #e4e4e7;
+      --bg-elevated: #ffffff;
+      --bg-hover: #f0f0f2;
+      --bg-active: #e8e8ec;
+
+      --border-subtle: rgba(0, 0, 0, 0.04);
+      --border-default: rgba(0, 0, 0, 0.08);
+      --border-strong: rgba(0, 0, 0, 0.12);
+
+      --text-primary: #18181b;
+      --text-secondary: #52525b;
+      --text-tertiary: #71717a;
+      --text-muted: #a1a1aa;
+
+      --accent-primary: #4f46e5;
+      --accent-primary-hover: #6366f1;
+      --accent-secondary: #0891b2;
+
+      --success: #16a34a;
+      --warning: #ca8a04;
+      --error: #dc2626;
+      --info: #2563eb;
+
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+      --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+      --shadow-glow: 0 0 20px rgba(79, 70, 229, 0.1);
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       Reset & Base Styles
+       ══════════════════════════════════════════════════════════════ */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      font-size: 16px;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.5;
+      overflow: auto;
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       Layout
+       ══════════════════════════════════════════════════════════════ */
+    .app {
+      display: flex;
+      min-height: 100vh;
+      width: 100vw;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 260px;
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+
+    .sidebar-header {
+      padding: var(--space-lg);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    .logo-text {
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: -0.02em;
+    }
+
+    .logo-badge {
+      font-size: 10px;
+      font-weight: 600;
+      background: var(--accent-primary);
+      color: white;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-left: auto;
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      padding: var(--space-md);
+      overflow-y: auto;
+    }
+
+    .nav-section {
+      margin-bottom: var(--space-lg);
+    }
+
+    .nav-section-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-tertiary);
+      padding: var(--space-sm) var(--space-md);
+      margin-bottom: var(--space-xs);
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: var(--space-sm) var(--space-md);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all var(--transition-fast);
+      cursor: pointer;
+    }
+
+    .nav-item:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .nav-item.active {
+      background: var(--bg-active);
+      color: var(--text-primary);
+    }
+
+    .nav-item-icon {
+      width: 18px;
+      height: 18px;
+      opacity: 0.7;
+    }
+
+    .nav-item.active .nav-item-icon {
+      opacity: 1;
+    }
+
+    .nav-item-badge {
+      margin-left: auto;
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--bg-tertiary);
+      color: var(--text-tertiary);
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+
+    .sidebar-footer {
+      padding: var(--space-md);
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .theme-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-xs);
+      padding: var(--space-sm);
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-md);
+      border: none;
+      width: 100%;
+      cursor: pointer;
+    }
+
+    .theme-btn {
+      flex: 1;
+      padding: var(--space-sm) var(--space-md);
+      border-radius: var(--radius-sm);
+      border: none;
+      background: transparent;
+      color: var(--text-tertiary);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-xs);
+    }
+
+    .theme-btn.active {
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* Main Content */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: visible;
+      min-width: 0;
+    }
+
+    .main-header {
+      padding: var(--space-lg) var(--space-xl);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .page-title {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .page-subtitle {
+      font-size: 13px;
+      color: var(--text-tertiary);
+      margin-top: 2px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+
+    .search-box {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: var(--space-sm) var(--space-md);
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      min-width: 240px;
+    }
+
+    .search-box input {
+      flex: 1;
+      border: none;
+      background: transparent;
+      color: var(--text-primary);
+      font-size: 13px;
+      outline: none;
+    }
+
+    .search-box input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .search-kbd {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-muted);
+      background: var(--bg-hover);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-xs);
+      padding: var(--space-sm) var(--space-md);
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .btn-primary {
+      background: var(--accent-primary);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-primary-hover);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-secondary);
+      border: 1px solid var(--border-default);
+    }
+
+    .btn-ghost:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .main-content {
+      flex: 1;
+      overflow-y: visible;
+      padding: var(--space-xl);
+      padding-bottom: var(--space-2xl);
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       Session List Page
+       ══════════════════════════════════════════════════════════════ */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--space-md);
+      margin-bottom: var(--space-xl);
+    }
+
+    .stat-card {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: var(--space-lg);
+      transition: all var(--transition-fast);
+    }
+
+    .stat-card:hover {
+      border-color: var(--border-default);
+      box-shadow: var(--shadow-md);
+    }
+
+    .stat-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      margin-bottom: var(--space-xs);
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      font-feature-settings: 'tnum';
+    }
+
+    .stat-change {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      font-size: 12px;
+      font-weight: 500;
+      margin-top: var(--space-xs);
+    }
+
+    .stat-change.positive { color: var(--success); }
+    .stat-change.negative { color: var(--error); }
+
+    /* Filter Bar */
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      margin-bottom: var(--space-lg);
+      flex-wrap: wrap;
+    }
+
+    .filter-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-xs);
+      padding: 6px 12px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-subtle);
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .filter-chip:hover {
+      border-color: var(--border-default);
+      color: var(--text-primary);
+    }
+
+    .filter-chip.active {
+      background: var(--accent-primary);
+      border-color: var(--accent-primary);
+      color: white;
+    }
+
+    .filter-divider {
+      width: 1px;
+      height: 24px;
+      background: var(--border-default);
+      margin: 0 var(--space-sm);
+    }
+
+    /* Session Table */
+    .sessions-table {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    .table-header {
+      display: grid;
+      grid-template-columns: 1fr 160px 120px 100px 100px 80px;
+      gap: var(--space-md);
+      padding: var(--space-md) var(--space-lg);
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-tertiary);
+    }
+
+    .table-row {
+      display: grid;
+      grid-template-columns: 1fr 160px 120px 100px 100px 80px;
+      gap: var(--space-md);
+      padding: var(--space-md) var(--space-lg);
+      border-bottom: 1px solid var(--border-subtle);
+      align-items: center;
+      transition: all var(--transition-fast);
+      cursor: pointer;
+    }
+
+    .table-row:last-child {
+      border-bottom: none;
+    }
+
+    .table-row:hover {
+      background: var(--bg-hover);
+    }
+
+    .session-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .session-project {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .session-id {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .session-timestamp {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .session-duration {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .session-tokens {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .session-tools {
+      display: flex;
+      gap: 4px;
+    }
+
+    .tool-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .tool-dot.bash { background: var(--tool-bash); }
+    .tool-dot.read { background: var(--tool-read); }
+    .tool-dot.edit { background: var(--tool-edit); }
+    .tool-dot.write { background: var(--tool-write); }
+    .tool-dot.grep { background: var(--tool-grep); }
+    .tool-dot.task { background: var(--tool-task); }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .status-badge.success {
+      background: rgba(34, 197, 94, 0.15);
+      color: var(--success);
+    }
+
+    .status-badge.error {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--error);
+    }
+
+    .status-badge.running {
+      background: rgba(59, 130, 246, 0.15);
+      color: var(--info);
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .status-badge.running .status-dot {
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       Session Detail Page
+       ══════════════════════════════════════════════════════════════ */
+    .detail-page {
+      display: none;
+    }
+
+    .detail-page.active {
+      display: block;
+    }
+
+    .breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      font-size: 13px;
+      margin-bottom: var(--space-lg);
+    }
+
+    .breadcrumb a {
+      color: var(--text-tertiary);
+      text-decoration: none;
+      transition: color var(--transition-fast);
+    }
+
+    .breadcrumb a:hover {
+      color: var(--text-primary);
+    }
+
+    .breadcrumb-sep {
+      color: var(--text-muted);
+    }
+
+    .breadcrumb-current {
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .detail-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: var(--space-xl);
+    }
+
+    .detail-title {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: var(--space-xs);
+    }
+
+    .detail-meta {
+      display: flex;
+      align-items: center;
+      gap: var(--space-md);
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .meta-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+    }
+
+    .meta-divider {
+      color: var(--text-muted);
+    }
+
+    /* Metrics Panel */
+    .metrics-panel {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: var(--space-md);
+      margin-bottom: var(--space-xl);
+    }
+
+    .metric-card {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: var(--space-md);
+      text-align: center;
+    }
+
+    .metric-icon {
+      width: 32px;
+      height: 32px;
+      margin: 0 auto var(--space-sm);
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+
+    .metric-value {
+      font-size: 20px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      letter-spacing: -0.02em;
+    }
+
+    .metric-label {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      margin-top: 2px;
+    }
+
+    /* Flamegraph Container */
+    .flamegraph-section {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      margin-bottom: var(--space-xl);
+    }
+
+    .flamegraph-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-md) var(--space-lg);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .flamegraph-title {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .flamegraph-controls {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+
+    .zoom-controls {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-sm);
+      padding: 2px;
+    }
+
+    .zoom-btn {
+      width: 28px;
+      height: 28px;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--transition-fast);
+    }
+
+    .zoom-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .flamegraph-canvas {
+      height: 400px;
+      background: var(--bg-primary);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Simulated Flamegraph (CSS-only demo) */
+    .flame-stack {
+      position: absolute;
+      left: var(--space-lg);
+      right: var(--space-lg);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: var(--space-lg);
+    }
+
+    .flame-row {
+      display: flex;
+      gap: 2px;
+      height: 28px;
+    }
+
+    .flame-block {
+      height: 100%;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      padding: 0 var(--space-sm);
+      font-size: 11px;
+      font-weight: 500;
+      color: white;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      position: relative;
+    }
+
+    .flame-block:hover {
+      filter: brightness(1.15);
+      transform: translateY(-1px);
+      z-index: 10;
+    }
+
+    .flame-block.session { background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); }
+    .flame-block.prompt { background: linear-gradient(135deg, #0891b2 0%, #22d3ee 100%); }
+    .flame-block.bash { background: linear-gradient(135deg, #059669 0%, #10b981 100%); }
+    .flame-block.read { background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%); }
+    .flame-block.edit { background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%); }
+    .flame-block.task { background: linear-gradient(135deg, #ea580c 0%, #f97316 100%); }
+    .flame-block.grep { background: linear-gradient(135deg, #db2777 0%, #ec4899 100%); }
+    .flame-block.glob { background: linear-gradient(135deg, #0891b2 0%, #06b6d4 100%); }
+    .flame-block.thinking { background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%); }
+
+    .flame-duration {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      opacity: 0.8;
+      margin-left: auto;
+      padding-left: var(--space-sm);
+    }
+
+    /* Tool Legend */
+    .tool-legend {
+      display: flex;
+      align-items: center;
+      gap: var(--space-lg);
+      padding: var(--space-md) var(--space-lg);
+      border-top: 1px solid var(--border-subtle);
+      background: var(--bg-tertiary);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .legend-color {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+    }
+
+    .legend-color.bash { background: var(--tool-bash); }
+    .legend-color.read { background: var(--tool-read); }
+    .legend-color.edit { background: var(--tool-edit); }
+    .legend-color.grep { background: var(--tool-grep); }
+    .legend-color.task { background: var(--tool-task); }
+    .legend-color.glob { background: var(--tool-glob); }
+
+    /* Timeline Section */
+    .timeline-section {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    .timeline-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-md) var(--space-lg);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .timeline-title {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .timeline-content {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .timeline-item {
+      display: flex;
+      gap: var(--space-md);
+      padding: var(--space-md) var(--space-lg);
+      border-bottom: 1px solid var(--border-subtle);
+      transition: background var(--transition-fast);
+    }
+
+    .timeline-item:last-child {
+      border-bottom: none;
+    }
+
+    .timeline-item:hover {
+      background: var(--bg-hover);
+    }
+
+    .timeline-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    .timeline-icon.bash { background: rgba(16, 185, 129, 0.15); color: var(--tool-bash); }
+    .timeline-icon.read { background: rgba(59, 130, 246, 0.15); color: var(--tool-read); }
+    .timeline-icon.edit { background: rgba(245, 158, 11, 0.15); color: var(--tool-edit); }
+    .timeline-icon.task { background: rgba(249, 115, 22, 0.15); color: var(--tool-task); }
+    .timeline-icon.grep { background: rgba(236, 72, 153, 0.15); color: var(--tool-grep); }
+    .timeline-icon.user { background: rgba(99, 102, 241, 0.15); color: var(--accent-primary); }
+
+    .timeline-body {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .timeline-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 2px;
+    }
+
+    .timeline-detail {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-tertiary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .timeline-meta {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 2px;
+      flex-shrink: 0;
+    }
+
+    .timeline-time {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .timeline-duration {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       Page Visibility
+       ══════════════════════════════════════════════════════════════ */
+    .list-page {
+      display: block;
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       Animations
+       ══════════════════════════════════════════════════════════════ */
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .stats-grid .stat-card {
+      animation: fadeInUp 0.4s ease-out backwards;
+    }
+
+    .stats-grid .stat-card:nth-child(1) { animation-delay: 0.05s; }
+    .stats-grid .stat-card:nth-child(2) { animation-delay: 0.1s; }
+    .stats-grid .stat-card:nth-child(3) { animation-delay: 0.15s; }
+    .stats-grid .stat-card:nth-child(4) { animation-delay: 0.2s; }
+
+    .table-row {
+      animation: fadeInUp 0.3s ease-out backwards;
+    }
+
+    .table-row:nth-child(1) { animation-delay: 0.1s; }
+    .table-row:nth-child(2) { animation-delay: 0.15s; }
+    .table-row:nth-child(3) { animation-delay: 0.2s; }
+    .table-row:nth-child(4) { animation-delay: 0.25s; }
+    .table-row:nth-child(5) { animation-delay: 0.3s; }
+
+    .flame-row {
+      animation: fadeInUp 0.4s ease-out backwards;
+    }
+
+    .flame-row:nth-child(1) { animation-delay: 0.1s; }
+    .flame-row:nth-child(2) { animation-delay: 0.15s; }
+    .flame-row:nth-child(3) { animation-delay: 0.2s; }
+    .flame-row:nth-child(4) { animation-delay: 0.25s; }
+    .flame-row:nth-child(5) { animation-delay: 0.3s; }
+    .flame-row:nth-child(6) { animation-delay: 0.35s; }
+
+    /* ══════════════════════════════════════════════════════════════
+       Tooltip
+       ══════════════════════════════════════════════════════════════ */
+    .tooltip {
+      position: fixed;
+      padding: var(--space-sm) var(--space-md);
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      color: var(--text-primary);
+      pointer-events: none;
+      z-index: 1000;
+      box-shadow: var(--shadow-lg);
+      display: none;
+    }
+
+    .tooltip.visible {
+      display: block;
+    }
+
+    .tooltip-title {
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .tooltip-row {
+      display: flex;
+      justify-content: space-between;
+      gap: var(--space-lg);
+      color: var(--text-secondary);
+    }
+
+    .tooltip-value {
+      font-family: var(--font-mono);
+      color: var(--text-primary);
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       Scrollbar Styling
+       ══════════════════════════════════════════════════════════════ */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border-strong);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-muted);
+    }
+  </style>
+</head>
+<body data-theme="dark">
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <div class="logo-icon">⚡</div>
+          <span class="logo-text">Claude Tracer</span>
+          <span class="logo-badge">MVP</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section">
+          <div class="nav-section-title">Overview</div>
+          <a href="#" class="nav-item active" data-page="list">
+            <svg class="nav-item-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+            </svg>
+            Sessions
+            <span class="nav-item-badge">24</span>
+          </a>
+          <a href="#" class="nav-item" data-page="detail">
+            <svg class="nav-item-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+            </svg>
+            Flamegraph
+          </a>
+          <a href="#" class="nav-item">
+            <svg class="nav-item-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+            </svg>
+            Analytics
+          </a>
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-section-title">Tools</div>
+          <a href="#" class="nav-item">
+            <svg class="nav-item-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+            </svg>
+            Tool Usage
+          </a>
+          <a href="#" class="nav-item">
+            <svg class="nav-item-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            Cost Tracker
+          </a>
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-section-title">Settings</div>
+          <a href="#" class="nav-item">
+            <svg class="nav-item-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+            Configuration
+          </a>
+        </div>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="theme-toggle">
+          <button class="theme-btn active" data-theme-btn="dark">
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/>
+            </svg>
+            Dark
+          </button>
+          <button class="theme-btn" data-theme-btn="light">
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"/>
+            </svg>
+            Light
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main">
+      <!-- List Page -->
+      <div class="list-page" id="list-page">
+        <header class="main-header">
+          <div>
+            <h1 class="page-title">Sessions</h1>
+            <p class="page-subtitle">24 sessions traced this week</p>
+          </div>
+          <div class="header-actions">
+            <div class="search-box">
+              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+              </svg>
+              <input type="text" placeholder="Search sessions...">
+              <span class="search-kbd">⌘K</span>
+            </div>
+            <button class="btn btn-ghost">
+              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+              </svg>
+              Filter
+            </button>
+            <button class="btn btn-primary">
+              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              </svg>
+              Refresh
+            </button>
+          </div>
+        </header>
+
+        <div class="main-content">
+          <!-- Stats Grid -->
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-label">Total Sessions</div>
+              <div class="stat-value">248</div>
+              <div class="stat-change positive">
+                <svg width="12" height="12" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
+                </svg>
+                12% from last week
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Avg Duration</div>
+              <div class="stat-value">4m 32s</div>
+              <div class="stat-change negative">
+                <svg width="12" height="12" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M14.707 10.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 12.586V5a1 1 0 012 0v7.586l2.293-2.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                </svg>
+                8% slower
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Total Tokens</div>
+              <div class="stat-value">1.2M</div>
+              <div class="stat-change positive">
+                <svg width="12" height="12" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
+                </svg>
+                5% efficiency
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Tool Calls</div>
+              <div class="stat-value">3,847</div>
+              <div class="stat-change positive">
+                <svg width="12" height="12" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
+                </svg>
+                Normal range
+              </div>
+            </div>
+          </div>
+
+          <!-- Filter Bar -->
+          <div class="filter-bar">
+            <button class="filter-chip active">All Sessions</button>
+            <button class="filter-chip">Today</button>
+            <button class="filter-chip">This Week</button>
+            <div class="filter-divider"></div>
+            <button class="filter-chip">
+              <span class="tool-dot bash"></span>
+              Bash
+            </button>
+            <button class="filter-chip">
+              <span class="tool-dot task"></span>
+              Task (Sub-agent)
+            </button>
+            <button class="filter-chip">
+              <span class="tool-dot edit"></span>
+              Edit
+            </button>
+          </div>
+
+          <!-- Sessions Table -->
+          <div class="sessions-table">
+            <div class="table-header">
+              <div>Session</div>
+              <div>Started</div>
+              <div>Duration</div>
+              <div>Tokens</div>
+              <div>Tools</div>
+              <div>Status</div>
+            </div>
+
+            <div class="table-row" onclick="showDetail()">
+              <div class="session-info">
+                <div class="session-project">claude-code-tracer</div>
+                <div class="session-id">6d186dc8-e141-4ee7</div>
+              </div>
+              <div class="session-timestamp">Jan 9, 10:32 AM</div>
+              <div class="session-duration">12m 45s</div>
+              <div class="session-tokens">48.2K</div>
+              <div class="session-tools">
+                <span class="tool-dot bash" title="Bash"></span>
+                <span class="tool-dot read" title="Read"></span>
+                <span class="tool-dot edit" title="Edit"></span>
+                <span class="tool-dot task" title="Task"></span>
+              </div>
+              <div>
+                <span class="status-badge success">
+                  <span class="status-dot"></span>
+                  Complete
+                </span>
+              </div>
+            </div>
+
+            <div class="table-row" onclick="showDetail()">
+              <div class="session-info">
+                <div class="session-project">memo/2026-01-09</div>
+                <div class="session-id">a3f82b91-7c44-4d12</div>
+              </div>
+              <div class="session-timestamp">Jan 9, 09:15 AM</div>
+              <div class="session-duration">8m 22s</div>
+              <div class="session-tokens">32.1K</div>
+              <div class="session-tools">
+                <span class="tool-dot read" title="Read"></span>
+                <span class="tool-dot grep" title="Grep"></span>
+                <span class="tool-dot write" title="Write"></span>
+              </div>
+              <div>
+                <span class="status-badge success">
+                  <span class="status-dot"></span>
+                  Complete
+                </span>
+              </div>
+            </div>
+
+            <div class="table-row" onclick="showDetail()">
+              <div class="session-info">
+                <div class="session-project">frontend-app</div>
+                <div class="session-id">f7e91c23-8a55-4b67</div>
+              </div>
+              <div class="session-timestamp">Jan 9, 08:45 AM</div>
+              <div class="session-duration">5m 18s</div>
+              <div class="session-tokens">21.4K</div>
+              <div class="session-tools">
+                <span class="tool-dot bash" title="Bash"></span>
+                <span class="tool-dot edit" title="Edit"></span>
+              </div>
+              <div>
+                <span class="status-badge running">
+                  <span class="status-dot"></span>
+                  Running
+                </span>
+              </div>
+            </div>
+
+            <div class="table-row" onclick="showDetail()">
+              <div class="session-info">
+                <div class="session-project">api-server</div>
+                <div class="session-id">c2d45f78-1b33-4e89</div>
+              </div>
+              <div class="session-timestamp">Jan 8, 11:22 PM</div>
+              <div class="session-duration">15m 02s</div>
+              <div class="session-tokens">67.8K</div>
+              <div class="session-tools">
+                <span class="tool-dot bash" title="Bash"></span>
+                <span class="tool-dot read" title="Read"></span>
+                <span class="tool-dot grep" title="Grep"></span>
+                <span class="tool-dot task" title="Task"></span>
+              </div>
+              <div>
+                <span class="status-badge error">
+                  <span class="status-dot"></span>
+                  Error
+                </span>
+              </div>
+            </div>
+
+            <div class="table-row" onclick="showDetail()">
+              <div class="session-info">
+                <div class="session-project">data-pipeline</div>
+                <div class="session-id">89b12e45-6f77-4a23</div>
+              </div>
+              <div class="session-timestamp">Jan 8, 10:05 PM</div>
+              <div class="session-duration">3m 44s</div>
+              <div class="session-tokens">15.2K</div>
+              <div class="session-tools">
+                <span class="tool-dot read" title="Read"></span>
+                <span class="tool-dot edit" title="Edit"></span>
+              </div>
+              <div>
+                <span class="status-badge success">
+                  <span class="status-dot"></span>
+                  Complete
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Detail Page -->
+      <div class="detail-page" id="detail-page">
+        <header class="main-header">
+          <div>
+            <div class="breadcrumb">
+              <a href="#" onclick="showList()">Sessions</a>
+              <span class="breadcrumb-sep">/</span>
+              <span class="breadcrumb-current">claude-code-tracer</span>
+            </div>
+            <h1 class="page-title">Session 6d186dc8-e141-4ee7</h1>
+            <div class="detail-meta">
+              <span class="meta-item">
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                Jan 9, 2026, 10:32 AM
+              </span>
+              <span class="meta-divider">•</span>
+              <span class="meta-item">12m 45s</span>
+              <span class="meta-divider">•</span>
+              <span class="meta-item">claude-opus-4-5</span>
+            </div>
+          </div>
+          <div class="header-actions">
+            <button class="btn btn-ghost">
+              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+              </svg>
+              Export
+            </button>
+            <button class="btn btn-primary">
+              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+              </svg>
+              Compare
+            </button>
+          </div>
+        </header>
+
+        <div class="main-content">
+          <!-- Metrics Panel -->
+          <div class="metrics-panel">
+            <div class="metric-card">
+              <div class="metric-icon">⏱️</div>
+              <div class="metric-value">12:45</div>
+              <div class="metric-label">Duration</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-icon">📥</div>
+              <div class="metric-value">42.1K</div>
+              <div class="metric-label">Input Tokens</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-icon">📤</div>
+              <div class="metric-value">6.1K</div>
+              <div class="metric-label">Output Tokens</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-icon">💾</div>
+              <div class="metric-value">38.2K</div>
+              <div class="metric-label">Cache Tokens</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-icon">🔧</div>
+              <div class="metric-value">47</div>
+              <div class="metric-label">Tool Calls</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-icon">🤖</div>
+              <div class="metric-value">3</div>
+              <div class="metric-label">Sub-agents</div>
+            </div>
+          </div>
+
+          <!-- Flamegraph Section -->
+          <div class="flamegraph-section">
+            <div class="flamegraph-header">
+              <div class="flamegraph-title">Flamegraph</div>
+              <div class="flamegraph-controls">
+                <div class="zoom-controls">
+                  <button class="zoom-btn" title="Zoom Out">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
+                    </svg>
+                  </button>
+                  <button class="zoom-btn" title="Reset Zoom">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+                    </svg>
+                  </button>
+                  <button class="zoom-btn" title="Zoom In">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                  </button>
+                </div>
+                <button class="btn btn-ghost" style="padding: 6px 10px; font-size: 12px;">
+                  <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                  </svg>
+                  Screenshot
+                </button>
+              </div>
+            </div>
+
+            <div class="flamegraph-canvas">
+              <!-- CSS-only Flamegraph Demo -->
+              <div class="flame-stack">
+                <!-- Root: Session -->
+                <div class="flame-row">
+                  <div class="flame-block session" style="width: 100%;">
+                    Session: claude-code-tracer (6d186dc8)
+                    <span class="flame-duration">12m 45s</span>
+                  </div>
+                </div>
+
+                <!-- Level 1: User Prompts -->
+                <div class="flame-row">
+                  <div class="flame-block prompt" style="width: 25%;">
+                    "아이디어 브레인스토밍..."
+                    <span class="flame-duration">3m 12s</span>
+                  </div>
+                  <div class="flame-block prompt" style="width: 35%;">
+                    "JSONL 로그 포맷 분석해보자"
+                    <span class="flame-duration">4m 28s</span>
+                  </div>
+                  <div class="flame-block prompt" style="width: 40%;">
+                    "기술 스택 검토 및 문서화"
+                    <span class="flame-duration">5m 05s</span>
+                  </div>
+                </div>
+
+                <!-- Level 2: Tool Calls -->
+                <div class="flame-row">
+                  <div class="flame-block thinking" style="width: 8%;">Thinking</div>
+                  <div class="flame-block bash" style="width: 5%;">WebFetch</div>
+                  <div class="flame-block thinking" style="width: 12%;">Thinking</div>
+
+                  <div class="flame-block bash" style="width: 3%;">ls</div>
+                  <div class="flame-block read" style="width: 5%;">Read JSONL</div>
+                  <div class="flame-block task" style="width: 15%;">
+                    Task[Explore]
+                    <span class="flame-duration">1m 54s</span>
+                  </div>
+                  <div class="flame-block grep" style="width: 4%;">Grep</div>
+                  <div class="flame-block thinking" style="width: 8%;">Thinking</div>
+
+                  <div class="flame-block read" style="width: 6%;">Read docs</div>
+                  <div class="flame-block thinking" style="width: 10%;">Thinking</div>
+                  <div class="flame-block edit" style="width: 12%;">
+                    Edit: design.md
+                    <span class="flame-duration">45s</span>
+                  </div>
+                  <div class="flame-block thinking" style="width: 12%;">Thinking</div>
+                </div>
+
+                <!-- Level 3: Sub-agent internals -->
+                <div class="flame-row">
+                  <div style="width: 33%; display: flex; gap: 2px;"></div>
+                  <div class="flame-block glob" style="width: 4%;">Glob</div>
+                  <div class="flame-block read" style="width: 3%;">Read</div>
+                  <div class="flame-block grep" style="width: 5%;">Grep</div>
+                  <div class="flame-block read" style="width: 3%;">Read</div>
+                </div>
+
+                <!-- Level 4: Nested details -->
+                <div class="flame-row">
+                  <div style="width: 37%; display: flex; gap: 2px;"></div>
+                  <div class="flame-block read" style="width: 2%;" title="Read: schema.ts">R</div>
+                  <div class="flame-block read" style="width: 2%;" title="Read: types.ts">R</div>
+                  <div class="flame-block read" style="width: 3%;" title="Read: parser.ts">R</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="tool-legend">
+              <div class="legend-item">
+                <div class="legend-color bash"></div>
+                <span>Bash</span>
+              </div>
+              <div class="legend-item">
+                <div class="legend-color read"></div>
+                <span>Read</span>
+              </div>
+              <div class="legend-item">
+                <div class="legend-color edit"></div>
+                <span>Edit</span>
+              </div>
+              <div class="legend-item">
+                <div class="legend-color grep"></div>
+                <span>Grep</span>
+              </div>
+              <div class="legend-item">
+                <div class="legend-color task"></div>
+                <span>Task (Sub-agent)</span>
+              </div>
+              <div class="legend-item">
+                <div class="legend-color glob"></div>
+                <span>Glob</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Timeline Section -->
+          <div class="timeline-section">
+            <div class="timeline-header">
+              <div class="timeline-title">Event Timeline</div>
+              <button class="btn btn-ghost" style="padding: 6px 10px; font-size: 12px;">
+                Expand All
+              </button>
+            </div>
+            <div class="timeline-content">
+              <div class="timeline-item">
+                <div class="timeline-icon user">💬</div>
+                <div class="timeline-body">
+                  <div class="timeline-name">User Prompt</div>
+                  <div class="timeline-detail">"아이디어 브레인스토밍을 도와줘 claude code 를 사용하면..."</div>
+                </div>
+                <div class="timeline-meta">
+                  <div class="timeline-time">10:32:00</div>
+                </div>
+              </div>
+
+              <div class="timeline-item">
+                <div class="timeline-icon bash">⚡</div>
+                <div class="timeline-body">
+                  <div class="timeline-name">WebFetch</div>
+                  <div class="timeline-detail">https://docs.langchain.com/langsmith/trace-claude-code</div>
+                </div>
+                <div class="timeline-meta">
+                  <div class="timeline-time">10:32:45</div>
+                  <div class="timeline-duration">12.0s</div>
+                </div>
+              </div>
+
+              <div class="timeline-item">
+                <div class="timeline-icon user">💬</div>
+                <div class="timeline-body">
+                  <div class="timeline-name">User Prompt</div>
+                  <div class="timeline-detail">"JSONL 로그 포맷 분석해보자"</div>
+                </div>
+                <div class="timeline-meta">
+                  <div class="timeline-time">10:35:12</div>
+                </div>
+              </div>
+
+              <div class="timeline-item">
+                <div class="timeline-icon bash">⚡</div>
+                <div class="timeline-body">
+                  <div class="timeline-name">Bash</div>
+                  <div class="timeline-detail">ls -la ~/.claude/projects/</div>
+                </div>
+                <div class="timeline-meta">
+                  <div class="timeline-time">10:35:18</div>
+                  <div class="timeline-duration">0.2s</div>
+                </div>
+              </div>
+
+              <div class="timeline-item">
+                <div class="timeline-icon read">📖</div>
+                <div class="timeline-body">
+                  <div class="timeline-name">Read</div>
+                  <div class="timeline-detail">~/.claude/projects/.../6d186dc8.jsonl</div>
+                </div>
+                <div class="timeline-meta">
+                  <div class="timeline-time">10:35:22</div>
+                  <div class="timeline-duration">0.1s</div>
+                </div>
+              </div>
+
+              <div class="timeline-item">
+                <div class="timeline-icon task">🤖</div>
+                <div class="timeline-body">
+                  <div class="timeline-name">Task [Explore]</div>
+                  <div class="timeline-detail">Analyzing Claude Code log structure</div>
+                </div>
+                <div class="timeline-meta">
+                  <div class="timeline-time">10:35:30</div>
+                  <div class="timeline-duration">1m 54s</div>
+                </div>
+              </div>
+
+              <div class="timeline-item">
+                <div class="timeline-icon edit">✏️</div>
+                <div class="timeline-body">
+                  <div class="timeline-name">Edit</div>
+                  <div class="timeline-detail">claude-code-tracer-design.md (created)</div>
+                </div>
+                <div class="timeline-meta">
+                  <div class="timeline-time">10:42:15</div>
+                  <div class="timeline-duration">0.8s</div>
+                </div>
+              </div>
+
+              <div class="timeline-item">
+                <div class="timeline-icon grep">🔍</div>
+                <div class="timeline-body">
+                  <div class="timeline-name">Grep</div>
+                  <div class="timeline-detail">pattern: "durationMs" in ~/.claude/</div>
+                </div>
+                <div class="timeline-meta">
+                  <div class="timeline-time">10:43:02</div>
+                  <div class="timeline-duration">0.3s</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Tooltip -->
+  <div class="tooltip" id="tooltip">
+    <div class="tooltip-title">Bash: ls ~/.claude/</div>
+    <div class="tooltip-row">
+      <span>Duration</span>
+      <span class="tooltip-value">0.2s</span>
+    </div>
+    <div class="tooltip-row">
+      <span>Exit Code</span>
+      <span class="tooltip-value">0</span>
+    </div>
+  </div>
+
+  <script>
+    // Theme Toggle
+    const themeBtns = document.querySelectorAll('[data-theme-btn]');
+    themeBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const theme = btn.dataset.themeBtn;
+        document.body.dataset.theme = theme;
+        themeBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+
+    // Page Navigation
+    const navItems = document.querySelectorAll('.nav-item[data-page]');
+    const listPage = document.getElementById('list-page');
+    const detailPage = document.getElementById('detail-page');
+
+    function showList() {
+      listPage.classList.add('list-page');
+      detailPage.classList.remove('active');
+      navItems.forEach(item => {
+        item.classList.toggle('active', item.dataset.page === 'list');
+      });
+    }
+
+    function showDetail() {
+      listPage.classList.remove('list-page');
+      detailPage.classList.add('active');
+      navItems.forEach(item => {
+        item.classList.toggle('active', item.dataset.page === 'detail');
+      });
+    }
+
+    navItems.forEach(item => {
+      item.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (item.dataset.page === 'list') showList();
+        else if (item.dataset.page === 'detail') showDetail();
+      });
+    });
+
+    // Filter Chips
+    const filterChips = document.querySelectorAll('.filter-chip');
+    filterChips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        // For "All Sessions" type filters, make them exclusive
+        if (chip.textContent.includes('All') || chip.textContent.includes('Today') || chip.textContent.includes('Week')) {
+          filterChips.forEach(c => {
+            if (c.textContent.includes('All') || c.textContent.includes('Today') || c.textContent.includes('Week')) {
+              c.classList.remove('active');
+            }
+          });
+          chip.classList.add('active');
+        } else {
+          // Tool filters can be toggled
+          chip.classList.toggle('active');
+        }
+      });
+    });
+
+    // Tooltip for flame blocks
+    const tooltip = document.getElementById('tooltip');
+    const flameBlocks = document.querySelectorAll('.flame-block');
+
+    flameBlocks.forEach(block => {
+      block.addEventListener('mouseenter', (e) => {
+        const rect = block.getBoundingClientRect();
+        const name = block.textContent.trim().split('\n')[0];
+        const duration = block.querySelector('.flame-duration')?.textContent || 'N/A';
+
+        tooltip.innerHTML = `
+          <div class="tooltip-title">${name}</div>
+          <div class="tooltip-row">
+            <span>Duration</span>
+            <span class="tooltip-value">${duration}</span>
+          </div>
+        `;
+
+        tooltip.style.left = `${e.clientX + 10}px`;
+        tooltip.style.top = `${e.clientY + 10}px`;
+        tooltip.classList.add('visible');
+      });
+
+      block.addEventListener('mouseleave', () => {
+        tooltip.classList.remove('visible');
+      });
+
+      block.addEventListener('mousemove', (e) => {
+        tooltip.style.left = `${e.clientX + 10}px`;
+        tooltip.style.top = `${e.clientY + 10}px`;
+      });
+    });
+
+    // Keyboard shortcut for search
+    document.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        document.querySelector('.search-box input').focus();
+      }
+    });
+  </script>
+</body>
+</html>
