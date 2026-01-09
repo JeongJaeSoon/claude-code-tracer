@@ -35,6 +35,26 @@ bun run db:push  # DB 마이그레이션
 bun run build    # 빌드
 ```
 
+## Development
+
+### 개발 서버 실행
+
+```bash
+# 터미널 1: 백엔드
+bun run dev
+
+# 터미널 2: 프론트엔드
+bun run dev:client
+```
+
+- Backend: http://localhost:8080
+- Frontend: http://localhost:5173
+
+### UI 테스트 (Claude in Chrome)
+
+프론트엔드 변경 후 Claude in Chrome 을 사용하여 UI 테스트
+
+
 ## References
 
 - 상세 설계: `docs/claude-code-tracer-design.md`
