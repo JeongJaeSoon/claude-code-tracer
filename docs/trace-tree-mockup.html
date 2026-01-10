@@ -1,0 +1,1383 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Claude Code Tracer - Trace Tree UI Mockup</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* Base colors */
+      --bg-base: #0a0a0f;
+      --bg-surface: #12121a;
+      --bg-elevated: #1a1a24;
+      --bg-hover: #22222e;
+      --bg-active: #2a2a38;
+
+      /* Borders */
+      --border-subtle: #2a2a38;
+      --border-default: #3a3a48;
+      --border-accent: #4a4a58;
+
+      /* Text */
+      --text-primary: #f0f0f5;
+      --text-secondary: #a0a0b0;
+      --text-muted: #606070;
+      --text-accent: #70d0ff;
+
+      /* Accent colors */
+      --accent-cyan: #00d4ff;
+      --accent-purple: #a855f7;
+      --accent-green: #10b981;
+      --accent-orange: #f97316;
+      --accent-red: #ef4444;
+      --accent-blue: #3b82f6;
+      --accent-yellow: #eab308;
+      --accent-pink: #ec4899;
+
+      /* Tool colors */
+      --tool-glob: #06b6d4;
+      --tool-read: #10b981;
+      --tool-edit: #3b82f6;
+      --tool-write: #a855f7;
+      --tool-bash: #f97316;
+      --tool-grep: #eab308;
+      --tool-task: #ec4899;
+
+      /* Duration gradient */
+      --duration-fast: #10b981;
+      --duration-medium: #eab308;
+      --duration-slow: #f97316;
+
+      /* Shadows */
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+      --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+      --shadow-glow: 0 0 20px rgba(0, 212, 255, 0.15);
+
+      /* Spacing */
+      --space-xs: 4px;
+      --space-sm: 8px;
+      --space-md: 16px;
+      --space-lg: 24px;
+      --space-xl: 32px;
+
+      /* Radii */
+      --radius-sm: 4px;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+
+      /* Fonts */
+      --font-mono: 'JetBrains Mono', monospace;
+      --font-sans: 'Outfit', sans-serif;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg-base);
+      color: var(--text-primary);
+      line-height: 1.5;
+      overflow: hidden;
+    }
+
+    /* ========== Layout ========== */
+    .app-container {
+      display: flex;
+      height: 100vh;
+      background: linear-gradient(135deg, var(--bg-base) 0%, #0d0d14 100%);
+    }
+
+    /* ========== Sidebar ========== */
+    .sidebar {
+      width: 260px;
+      background: var(--bg-surface);
+      border-right: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+
+    .sidebar-header {
+      padding: var(--space-lg);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-purple) 100%);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      box-shadow: var(--shadow-glow);
+    }
+
+    .logo-text {
+      font-weight: 700;
+      font-size: 16px;
+      letter-spacing: -0.02em;
+    }
+
+    .logo-badge {
+      font-size: 9px;
+      font-weight: 600;
+      background: var(--accent-purple);
+      color: white;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-left: auto;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      padding: var(--space-md);
+    }
+
+    .nav-section-title {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      padding: var(--space-sm) var(--space-md);
+      margin-bottom: var(--space-xs);
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: var(--space-sm) var(--space-md);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      margin-bottom: 2px;
+    }
+
+    .nav-item:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .nav-item.active {
+      background: var(--bg-active);
+      color: var(--text-primary);
+    }
+
+    .nav-item-icon {
+      width: 18px;
+      height: 18px;
+      opacity: 0.7;
+    }
+
+    .nav-item.active .nav-item-icon {
+      opacity: 1;
+    }
+
+    /* ========== Main Content ========== */
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ========== Header ========== */
+    .content-header {
+      padding: var(--space-md) var(--space-lg);
+      border-bottom: 1px solid var(--border-subtle);
+      background: var(--bg-surface);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .breadcrumb a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+
+    .breadcrumb a:hover {
+      color: var(--text-accent);
+    }
+
+    .breadcrumb-separator {
+      opacity: 0.5;
+    }
+
+    .session-title {
+      font-family: var(--font-mono);
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+
+    .btn {
+      padding: var(--space-sm) var(--space-md);
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+      border: none;
+      font-family: var(--font-sans);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-secondary);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .btn-ghost:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+      border-color: var(--border-default);
+    }
+
+    /* ========== Stats Bar ========== */
+    .stats-bar {
+      display: flex;
+      gap: var(--space-md);
+      padding: var(--space-md) var(--space-lg);
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .stat-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: var(--space-sm) var(--space-md);
+      background: var(--bg-surface);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .stat-icon {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+    }
+
+    .stat-icon.duration { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); }
+    .stat-icon.tokens { background: rgba(59, 130, 246, 0.15); color: var(--accent-blue); }
+    .stat-icon.tools { background: rgba(249, 115, 22, 0.15); color: var(--accent-orange); }
+    .stat-icon.agents { background: rgba(168, 85, 247, 0.15); color: var(--accent-purple); }
+
+    .stat-content {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .stat-value {
+      font-family: var(--font-mono);
+      font-weight: 600;
+      font-size: 15px;
+      color: var(--text-primary);
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* ========== Content Area ========== */
+    .content-area {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* ========== Trace Tree Panel ========== */
+    .trace-panel {
+      width: 50%;
+      min-width: 400px;
+      border-right: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-base);
+    }
+
+    .panel-header {
+      padding: var(--space-md) var(--space-lg);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-surface);
+    }
+
+    .panel-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .panel-actions {
+      display: flex;
+      gap: var(--space-xs);
+    }
+
+    .icon-btn {
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-size: 14px;
+    }
+
+    .icon-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+      border-color: var(--border-subtle);
+    }
+
+    /* ========== Trace Tree ========== */
+    .trace-tree {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--space-md);
+    }
+
+    .trace-tree::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .trace-tree::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .trace-tree::-webkit-scrollbar-thumb {
+      background: var(--border-default);
+      border-radius: 4px;
+    }
+
+    .trace-tree::-webkit-scrollbar-thumb:hover {
+      background: var(--border-accent);
+    }
+
+    /* Prompt Section */
+    .prompt-section {
+      margin-bottom: var(--space-md);
+    }
+
+    .prompt-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: var(--space-sm) var(--space-md);
+      background: var(--bg-elevated);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      border: 1px solid var(--border-subtle);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .prompt-header::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: var(--accent-cyan);
+    }
+
+    .prompt-header:hover {
+      background: var(--bg-hover);
+      border-color: var(--border-default);
+    }
+
+    .prompt-header.selected {
+      background: var(--bg-active);
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.2), var(--shadow-glow);
+    }
+
+    .prompt-toggle {
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      transition: transform 0.2s ease;
+      font-size: 12px;
+    }
+
+    .prompt-toggle.expanded {
+      transform: rotate(90deg);
+    }
+
+    .prompt-icon {
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 212, 255, 0.15);
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+    }
+
+    .prompt-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .prompt-text {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .prompt-meta {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      margin-top: 2px;
+    }
+
+    .prompt-meta span {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .prompt-tools-count {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+      background: var(--bg-surface);
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+
+    /* Duration Bar */
+    .duration-bar-container {
+      width: 80px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 2px;
+    }
+
+    .duration-value {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .duration-bar {
+      width: 100%;
+      height: 4px;
+      background: var(--bg-surface);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .duration-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.3s ease;
+    }
+
+    .duration-bar-fill.fast {
+      background: linear-gradient(90deg, var(--duration-fast), #34d399);
+    }
+
+    .duration-bar-fill.medium {
+      background: linear-gradient(90deg, var(--duration-medium), #fbbf24);
+    }
+
+    .duration-bar-fill.slow {
+      background: linear-gradient(90deg, var(--duration-slow), #fb923c);
+    }
+
+    /* Tool Items */
+    .tools-list {
+      margin-left: var(--space-lg);
+      padding-left: var(--space-md);
+      border-left: 1px solid var(--border-subtle);
+      margin-top: var(--space-xs);
+      position: relative;
+    }
+
+    .tools-list::before {
+      content: '';
+      position: absolute;
+      left: -1px;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: linear-gradient(180deg, var(--border-default) 0%, transparent 100%);
+    }
+
+    .tool-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: var(--space-sm) var(--space-md);
+      margin: var(--space-xs) 0;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      position: relative;
+    }
+
+    .tool-item::before {
+      content: '';
+      position: absolute;
+      left: calc(-1 * var(--space-md) - 1px);
+      top: 50%;
+      width: var(--space-md);
+      height: 1px;
+      background: var(--border-subtle);
+    }
+
+    .tool-item:hover {
+      background: var(--bg-hover);
+    }
+
+    .tool-item.selected {
+      background: var(--bg-active);
+      box-shadow: inset 0 0 0 1px var(--border-default);
+    }
+
+    .tool-item.error {
+      background: rgba(239, 68, 68, 0.1);
+    }
+
+    .tool-item.error::before {
+      background: var(--accent-red);
+    }
+
+    .tool-icon {
+      width: 22px;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-sm);
+      font-size: 10px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+    }
+
+    .tool-icon.glob { background: rgba(6, 182, 212, 0.2); color: var(--tool-glob); }
+    .tool-icon.read { background: rgba(16, 185, 129, 0.2); color: var(--tool-read); }
+    .tool-icon.edit { background: rgba(59, 130, 246, 0.2); color: var(--tool-edit); }
+    .tool-icon.write { background: rgba(168, 85, 247, 0.2); color: var(--tool-write); }
+    .tool-icon.bash { background: rgba(249, 115, 22, 0.2); color: var(--tool-bash); }
+    .tool-icon.grep { background: rgba(234, 179, 8, 0.2); color: var(--tool-grep); }
+    .tool-icon.task { background: rgba(236, 72, 153, 0.2); color: var(--tool-task); }
+
+    .tool-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .tool-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .tool-input {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-top: 1px;
+    }
+
+    .tool-duration {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Sub-agent */
+    .subagent-section {
+      margin-left: var(--space-lg);
+      padding-left: var(--space-md);
+      border-left: 1px solid var(--accent-purple);
+      margin-top: var(--space-sm);
+    }
+
+    .subagent-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: var(--space-sm) var(--space-md);
+      background: rgba(168, 85, 247, 0.1);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      border: 1px solid rgba(168, 85, 247, 0.2);
+    }
+
+    .subagent-header:hover {
+      background: rgba(168, 85, 247, 0.15);
+      border-color: rgba(168, 85, 247, 0.3);
+    }
+
+    .subagent-icon {
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--accent-purple);
+      border-radius: 50%;
+      font-size: 10px;
+      color: white;
+    }
+
+    .subagent-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent-purple);
+    }
+
+    /* ========== Detail Panel ========== */
+    .detail-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-surface);
+      min-width: 400px;
+    }
+
+    .detail-header {
+      padding: var(--space-md) var(--space-lg);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      gap: var(--space-md);
+    }
+
+    .detail-icon {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-md);
+      font-size: 14px;
+    }
+
+    .detail-title-section {
+      flex: 1;
+    }
+
+    .detail-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .detail-subtitle {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .detail-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 0 var(--space-lg);
+      background: var(--bg-elevated);
+    }
+
+    .detail-tab {
+      padding: var(--space-sm) var(--space-md);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+    }
+
+    .detail-tab:hover {
+      color: var(--text-secondary);
+    }
+
+    .detail-tab.active {
+      color: var(--text-accent);
+      border-bottom-color: var(--accent-cyan);
+    }
+
+    .detail-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--space-lg);
+    }
+
+    .detail-section {
+      margin-bottom: var(--space-lg);
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--space-sm);
+    }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+    }
+
+    .section-badge {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 10px;
+      text-transform: uppercase;
+    }
+
+    .section-badge.human {
+      background: rgba(0, 212, 255, 0.15);
+      color: var(--accent-cyan);
+    }
+
+    .section-badge.ai {
+      background: rgba(168, 85, 247, 0.15);
+      color: var(--accent-purple);
+    }
+
+    .section-content {
+      background: var(--bg-base);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: var(--space-md);
+    }
+
+    .message-content {
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--text-primary);
+    }
+
+    .code-block {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.5;
+      color: var(--text-secondary);
+      background: var(--bg-elevated);
+      border-radius: var(--radius-sm);
+      padding: var(--space-md);
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .ai-response {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-sm);
+    }
+
+    .reasoning-block {
+      font-size: 12px;
+      color: var(--text-muted);
+      padding: var(--space-sm) var(--space-md);
+      background: rgba(168, 85, 247, 0.05);
+      border-left: 2px solid var(--accent-purple);
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    }
+
+    .reasoning-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--accent-purple);
+      margin-bottom: 4px;
+    }
+
+    .tool-call-block {
+      background: var(--bg-elevated);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-subtle);
+      overflow: hidden;
+    }
+
+    .tool-call-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: var(--space-sm) var(--space-md);
+      background: var(--bg-active);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .tool-call-name {
+      font-weight: 600;
+      font-size: 13px;
+      color: var(--text-primary);
+    }
+
+    .tool-call-id {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .tool-call-body {
+      padding: var(--space-md);
+    }
+
+    /* JSON View */
+    .json-toggle {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+      font-size: 11px;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: color 0.15s ease;
+    }
+
+    .json-toggle:hover {
+      color: var(--text-secondary);
+    }
+
+    .json-toggle input {
+      display: none;
+    }
+
+    .json-toggle .toggle-track {
+      width: 28px;
+      height: 16px;
+      background: var(--bg-active);
+      border-radius: 8px;
+      position: relative;
+      transition: background 0.15s ease;
+    }
+
+    .json-toggle input:checked + .toggle-track {
+      background: var(--accent-cyan);
+    }
+
+    .json-toggle .toggle-thumb {
+      width: 12px;
+      height: 12px;
+      background: var(--text-primary);
+      border-radius: 50%;
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      transition: transform 0.15s ease;
+    }
+
+    .json-toggle input:checked + .toggle-track .toggle-thumb {
+      transform: translateX(12px);
+    }
+
+    /* ========== Animations ========== */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .prompt-section {
+      animation: fadeIn 0.3s ease;
+    }
+
+    .tool-item {
+      animation: fadeIn 0.2s ease;
+    }
+
+    /* Tree connection lines animation */
+    @keyframes drawLine {
+      from { height: 0; }
+      to { height: 100%; }
+    }
+
+    .tools-list::before {
+      animation: drawLine 0.3s ease;
+    }
+
+    /* Selected state glow effect */
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.2), 0 0 20px rgba(0, 212, 255, 0.1); }
+      50% { box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.3), 0 0 30px rgba(0, 212, 255, 0.2); }
+    }
+
+    .prompt-header.selected {
+      animation: pulseGlow 2s ease-in-out infinite;
+    }
+
+    /* ========== Empty State ========== */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-muted);
+      text-align: center;
+      padding: var(--space-xl);
+    }
+
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: var(--space-md);
+      opacity: 0.3;
+    }
+
+    .empty-state-text {
+      font-size: 14px;
+      max-width: 200px;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <div class="logo-icon">⚡</div>
+          <span class="logo-text">Claude Tracer</span>
+          <span class="logo-badge">MVP</span>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section-title">Overview</div>
+        <div class="nav-item">
+          <svg class="nav-item-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+          </svg>
+          Projects
+        </div>
+        <div class="nav-item active">
+          <svg class="nav-item-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+          </svg>
+          Trace
+        </div>
+        <div class="nav-item">
+          <svg class="nav-item-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+          </svg>
+          Analytics
+        </div>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Header -->
+      <header class="content-header">
+        <div class="breadcrumb">
+          <a href="#">Sessions</a>
+          <span class="breadcrumb-separator">/</span>
+          <a href="#">memo</a>
+          <span class="breadcrumb-separator">/</span>
+          <span class="session-title">c45edeb1-15ab-4f1e</span>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-ghost">
+            <span>↻</span> Refresh
+          </button>
+          <button class="btn btn-ghost">
+            <span>⤓</span> Export
+          </button>
+        </div>
+      </header>
+
+      <!-- Stats Bar -->
+      <div class="stats-bar">
+        <div class="stat-item">
+          <div class="stat-icon duration">⏱</div>
+          <div class="stat-content">
+            <div class="stat-value">10.6s</div>
+            <div class="stat-label">Duration</div>
+          </div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-icon tokens">◈</div>
+          <div class="stat-content">
+            <div class="stat-value">34.6K</div>
+            <div class="stat-label">Tokens</div>
+          </div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-icon tools">⚙</div>
+          <div class="stat-content">
+            <div class="stat-value">9</div>
+            <div class="stat-label">Tools</div>
+          </div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-icon agents">◉</div>
+          <div class="stat-content">
+            <div class="stat-value">1</div>
+            <div class="stat-label">Sub-agents</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Content Area -->
+      <div class="content-area">
+        <!-- Trace Tree Panel -->
+        <div class="trace-panel">
+          <div class="panel-header">
+            <span class="panel-title">Trace Tree</span>
+            <div class="panel-actions">
+              <button class="icon-btn" title="Expand All">⊞</button>
+              <button class="icon-btn" title="Collapse All">⊟</button>
+              <button class="icon-btn" title="Filter">⚙</button>
+            </div>
+          </div>
+          <div class="trace-tree">
+            <!-- Prompt 1 -->
+            <div class="prompt-section">
+              <div class="prompt-header">
+                <div class="prompt-toggle expanded">▶</div>
+                <div class="prompt-icon">💬</div>
+                <div class="prompt-content">
+                  <div class="prompt-text">"파일 구조 보여줘"</div>
+                  <div class="prompt-meta">
+                    <span>3 tools</span>
+                  </div>
+                </div>
+                <div class="duration-bar-container">
+                  <div class="duration-value">2.3s</div>
+                  <div class="duration-bar">
+                    <div class="duration-bar-fill fast" style="width: 22%"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="tools-list">
+                <div class="tool-item">
+                  <div class="tool-icon glob">G</div>
+                  <div class="tool-content">
+                    <div class="tool-name">Glob</div>
+                    <div class="tool-input">**/*.md</div>
+                  </div>
+                  <div class="tool-duration">1.0s</div>
+                </div>
+                <div class="tool-item">
+                  <div class="tool-icon read">R</div>
+                  <div class="tool-content">
+                    <div class="tool-name">Read</div>
+                    <div class="tool-input">README.md</div>
+                  </div>
+                  <div class="tool-duration">0.2s</div>
+                </div>
+                <div class="tool-item">
+                  <div class="tool-icon read">R</div>
+                  <div class="tool-content">
+                    <div class="tool-name">Read</div>
+                    <div class="tool-input">docs/design.md</div>
+                  </div>
+                  <div class="tool-duration">0.3s</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Prompt 2 -->
+            <div class="prompt-section">
+              <div class="prompt-header selected">
+                <div class="prompt-toggle expanded">▶</div>
+                <div class="prompt-icon">💬</div>
+                <div class="prompt-content">
+                  <div class="prompt-text">"이 함수 수정해줘"</div>
+                  <div class="prompt-meta">
+                    <span>3 tools</span>
+                  </div>
+                </div>
+                <div class="duration-bar-container">
+                  <div class="duration-value">5.1s</div>
+                  <div class="duration-bar">
+                    <div class="duration-bar-fill slow" style="width: 48%"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="tools-list">
+                <div class="tool-item">
+                  <div class="tool-icon read">R</div>
+                  <div class="tool-content">
+                    <div class="tool-name">Read</div>
+                    <div class="tool-input">src/utils.ts</div>
+                  </div>
+                  <div class="tool-duration">0.1s</div>
+                </div>
+                <div class="tool-item selected">
+                  <div class="tool-icon edit">E</div>
+                  <div class="tool-content">
+                    <div class="tool-name">Edit</div>
+                    <div class="tool-input">src/utils.ts:42-56</div>
+                  </div>
+                  <div class="tool-duration">1.2s</div>
+                </div>
+                <div class="tool-item">
+                  <div class="tool-icon read">R</div>
+                  <div class="tool-content">
+                    <div class="tool-name">Read</div>
+                    <div class="tool-input">src/utils.ts</div>
+                  </div>
+                  <div class="tool-duration">0.1s</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Prompt 3 with Sub-agent -->
+            <div class="prompt-section">
+              <div class="prompt-header">
+                <div class="prompt-toggle expanded">▶</div>
+                <div class="prompt-icon">💬</div>
+                <div class="prompt-content">
+                  <div class="prompt-text">"테스트 실행해"</div>
+                  <div class="prompt-meta">
+                    <span>2 tools + 1 sub-agent</span>
+                  </div>
+                </div>
+                <div class="duration-bar-container">
+                  <div class="duration-value">3.2s</div>
+                  <div class="duration-bar">
+                    <div class="duration-bar-fill medium" style="width: 30%"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="tools-list">
+                <div class="tool-item">
+                  <div class="tool-icon bash">$</div>
+                  <div class="tool-content">
+                    <div class="tool-name">Bash</div>
+                    <div class="tool-input">npm test</div>
+                  </div>
+                  <div class="tool-duration">2.8s</div>
+                </div>
+                <div class="tool-item">
+                  <div class="tool-icon task">T</div>
+                  <div class="tool-content">
+                    <div class="tool-name">Task</div>
+                    <div class="tool-input">"테스트 결과 분석해줘"</div>
+                  </div>
+                  <div class="tool-duration">0.2s</div>
+                </div>
+                <!-- Sub-agent -->
+                <div class="subagent-section">
+                  <div class="subagent-header">
+                    <div class="subagent-icon">🤖</div>
+                    <div class="subagent-name">Sub-agent: ae844b5</div>
+                    <div class="duration-bar-container" style="width: 60px;">
+                      <div class="duration-value">1.5s</div>
+                      <div class="duration-bar">
+                        <div class="duration-bar-fill fast" style="width: 14%"></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="tools-list" style="margin-left: 12px; border-color: var(--accent-purple);">
+                    <div class="tool-item">
+                      <div class="tool-icon glob">G</div>
+                      <div class="tool-content">
+                        <div class="tool-name">Glob</div>
+                        <div class="tool-input">**/*.test.ts</div>
+                      </div>
+                      <div class="tool-duration">0.3s</div>
+                    </div>
+                    <div class="tool-item">
+                      <div class="tool-icon read">R</div>
+                      <div class="tool-content">
+                        <div class="tool-name">Read</div>
+                        <div class="tool-input">test-results.json</div>
+                      </div>
+                      <div class="tool-duration">0.2s</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Detail Panel -->
+        <div class="detail-panel">
+          <div class="detail-header">
+            <div class="detail-icon" style="background: rgba(59, 130, 246, 0.2); color: var(--tool-edit);">E</div>
+            <div class="detail-title-section">
+              <div class="detail-title">Edit</div>
+              <div class="detail-subtitle">src/utils.ts:42-56 · 1.2s</div>
+            </div>
+            <label class="json-toggle">
+              <span>JSON</span>
+              <input type="checkbox">
+              <span class="toggle-track">
+                <span class="toggle-thumb"></span>
+              </span>
+            </label>
+          </div>
+          <div class="detail-tabs">
+            <div class="detail-tab active">Run</div>
+            <div class="detail-tab">Input</div>
+            <div class="detail-tab">Output</div>
+            <div class="detail-tab">Metadata</div>
+          </div>
+          <div class="detail-content">
+            <!-- Input Section -->
+            <div class="detail-section">
+              <div class="section-header">
+                <span class="section-title">Input</span>
+              </div>
+              <div class="section-content">
+                <div class="code-block">{
+  "file_path": "/Users/dev-soon/project/src/utils.ts",
+  "old_string": "function calculateTotal(items) {\n  return items.reduce((sum, item) => sum + item.price, 0);\n}",
+  "new_string": "function calculateTotal(items: Item[]): number {\n  return items.reduce((sum, item) => sum + item.price * item.quantity, 0);\n}"
+}</div>
+              </div>
+            </div>
+
+            <!-- Output Section -->
+            <div class="detail-section">
+              <div class="section-header">
+                <span class="section-title">Output</span>
+                <span class="section-badge ai">Success</span>
+              </div>
+              <div class="section-content">
+                <div class="code-block">{
+  "success": true,
+  "message": "Successfully edited src/utils.ts",
+  "diff": {
+    "linesChanged": 3,
+    "additions": 2,
+    "deletions": 1
+  }
+}</div>
+              </div>
+            </div>
+
+            <!-- Context Section -->
+            <div class="detail-section">
+              <div class="section-header">
+                <span class="section-title">Context</span>
+              </div>
+              <div class="section-content">
+                <div class="message-content">
+                  <p style="color: var(--text-muted); font-size: 12px;">
+                    <strong>Parent Prompt:</strong> "이 함수 수정해줘"
+                  </p>
+                  <p style="color: var(--text-muted); font-size: 12px; margin-top: 8px;">
+                    <strong>Previous Tool:</strong> Read src/utils.ts
+                  </p>
+                  <p style="color: var(--text-muted); font-size: 12px; margin-top: 8px;">
+                    <strong>Next Tool:</strong> Read src/utils.ts
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // Interactive behaviors
+    document.querySelectorAll('.prompt-header').forEach(header => {
+      header.addEventListener('click', function() {
+        // Toggle selection
+        document.querySelectorAll('.prompt-header').forEach(h => h.classList.remove('selected'));
+        this.classList.add('selected');
+
+        // Toggle expand/collapse
+        const toggle = this.querySelector('.prompt-toggle');
+        const toolsList = this.nextElementSibling;
+        if (toggle && toolsList) {
+          toggle.classList.toggle('expanded');
+          toolsList.style.display = toolsList.style.display === 'none' ? 'block' : 'none';
+        }
+      });
+    });
+
+    document.querySelectorAll('.tool-item').forEach(item => {
+      item.addEventListener('click', function(e) {
+        e.stopPropagation();
+        document.querySelectorAll('.tool-item').forEach(i => i.classList.remove('selected'));
+        this.classList.add('selected');
+      });
+    });
+
+    document.querySelectorAll('.detail-tab').forEach(tab => {
+      tab.addEventListener('click', function() {
+        document.querySelectorAll('.detail-tab').forEach(t => t.classList.remove('active'));
+        this.classList.add('active');
+      });
+    });
+  </script>
+</body>
+</html>
