@@ -563,11 +563,22 @@ const detailPanelStyles = `
     font-size: 18px;
   }
 
+  .detail-title-section {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
   .detail-title {
-    flex: 1;
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 700;
     color: var(--text-primary);
+  }
+
+  .detail-subtitle {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 400;
   }
 
   .detail-meta {
