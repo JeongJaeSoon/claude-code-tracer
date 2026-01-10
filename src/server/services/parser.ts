@@ -112,27 +112,57 @@ export async function parseJSONL(content: string): Promise<ParseResult> {
       cacheCreationTokens += msg.message.usage.cache_creation_input_tokens || 0;
     }
 
-    // Add message
+    // Add message (only if it has actual user text content)
     if (msg.type === "user" || msg.type === "assistant") {
-      const content = Array.isArray(msg.message?.content)
-        ? msg.message.content
+      let content = "";
+      let isToolResultOnly = false;
+
+      let thinking = "";
+
+      if (Array.isArray(msg.message?.content)) {
+        // Check if content is only tool_result (not a real user prompt)
+        const hasTextContent = msg.message.content.some((b) => b.type === "text");
+        const hasThinkingContent = msg.message.content.some((b) => b.type === "thinking");
+        const hasOnlyToolResult = msg.message.content.every(
+          (b) => b.type === "tool_result" || b.type === "tool_use"
+        );
+
+        if (hasOnlyToolResult && !hasTextContent && !hasThinkingContent) {
+          isToolResultOnly = true;
+        } else {
+          // Extract text content
+          content = msg.message.content
             .filter((b) => b.type === "text")
             .map((b) => (b as { type: "text"; text?: string }).text || "")
             .join("\n")
-            .slice(0, 500)
-        : String(msg.message?.content || "").slice(0, 500);
+            .slice(0, 500);
 
-      messagesData.push({
-        id: crypto.randomUUID(),
-        sessionId: msg.sessionId,
-        uuid: msg.uuid,
-        parentUuid: msg.parentUuid,
-        type: msg.type,
-        agentId: msg.agentId,
-        isSidechain: msg.isSidechain || false,
-        content,
-        timestamp: msg.timestamp,
-      });
+          // Extract thinking content
+          thinking = msg.message.content
+            .filter((b) => b.type === "thinking")
+            .map((b) => (b as { type: "thinking"; thinking?: string }).thinking || "")
+            .join("\n")
+            .slice(0, 500);
+        }
+      } else {
+        content = String(msg.message?.content || "").slice(0, 500);
+      }
+
+      // Skip tool_result-only messages - they're not real user prompts
+      if (!isToolResultOnly) {
+        messagesData.push({
+          id: crypto.randomUUID(),
+          sessionId: msg.sessionId,
+          uuid: msg.uuid,
+          parentUuid: msg.parentUuid,
+          type: msg.type,
+          agentId: msg.agentId,
+          isSidechain: msg.isSidechain || false,
+          content,
+          thinking,
+          timestamp: msg.timestamp,
+        });
+      }
     }
 
     // Process content blocks for tool calls
@@ -152,6 +182,14 @@ export async function parseJSONL(content: string): Promise<ParseResult> {
         if (block.type === "tool_result" && block.tool_use_id) {
           const toolUse = toolUseMap.get(block.tool_use_id);
           if (toolUse) {
+            // Extract tool output content (truncated for storage)
+            let toolOutput = "";
+            if (typeof block.content === "string") {
+              toolOutput = block.content.slice(0, 500);
+            } else if (Array.isArray(block.content)) {
+              toolOutput = JSON.stringify(block.content).slice(0, 500);
+            }
+
             toolCallsData.push({
               id: crypto.randomUUID(),
               sessionId: msg.sessionId,
@@ -161,6 +199,7 @@ export async function parseJSONL(content: string): Promise<ParseResult> {
               agentId: msg.agentId,
               toolName: toolUse.name,
               toolInput: JSON.stringify(toolUse.input),
+              toolOutput,
               durationMs: msg.toolUseResult?.durationMs || 0,
               startTime: toolUse.startTime,
               isError: block.is_error || false,

@@ -31,6 +31,7 @@ export const toolCalls = sqliteTable("tool_calls", {
   agentId: text("agent_id"),
   toolName: text("tool_name").notNull(),
   toolInput: text("tool_input"), // JSON string
+  toolOutput: text("tool_output"), // truncated result content
   durationMs: integer("duration_ms"),
   startTime: real("start_time").notNull(), // relative to session start (ms)
   isError: integer("is_error", { mode: "boolean" }).default(false),
@@ -47,7 +48,8 @@ export const messages = sqliteTable("messages", {
   type: text("type", { enum: ["user", "assistant", "summary"] }).notNull(),
   agentId: text("agent_id"),
   isSidechain: integer("is_sidechain", { mode: "boolean" }).default(false),
-  content: text("content"), // truncated content for display
+  content: text("content"), // truncated text content for display
+  thinking: text("thinking"), // truncated thinking content for display
   timestamp: text("timestamp").notNull(),
 });
 
