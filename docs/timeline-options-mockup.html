@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Timeline Design Options - Claude Code Tracer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-void: #08090c;
+      --bg-deep: #0d0f14;
+      --bg-surface: #13161d;
+      --bg-elevated: #1a1e28;
+      --bg-hover: #252530;
+
+      --border-subtle: rgba(255,255,255,0.06);
+      --border-default: rgba(255,255,255,0.1);
+
+      --text-primary: #f4f4f5;
+      --text-secondary: #a1a1aa;
+      --text-muted: #71717a;
+      --text-dim: #52525b;
+      --accent: #6366f1;
+      --accent-glow: rgba(99, 102, 241, 0.3);
+
+      --tool-bash: #10b981;
+      --tool-read: #3b82f6;
+      --tool-edit: #f59e0b;
+      --tool-write: #8b5cf6;
+      --tool-task: #f97316;
+
+      --font-sans: 'Plus Jakarta Sans', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg-void);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    /* Page Header */
+    .page-header {
+      padding: 32px 48px;
+      border-bottom: 1px solid var(--border-subtle);
+      background: var(--bg-deep);
+    }
+
+    .page-title {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+    }
+
+    .page-subtitle {
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    /* Tab Navigation */
+    .tab-nav {
+      display: flex;
+      gap: 4px;
+      padding: 16px 48px;
+      background: var(--bg-deep);
+      border-bottom: 1px solid var(--border-subtle);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .tab-btn {
+      padding: 10px 20px;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      color: var(--text-secondary);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tab-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .tab-btn.active {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+
+    .tab-btn .badge {
+      font-size: 10px;
+      padding: 2px 6px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 4px;
+      font-weight: 500;
+    }
+
+    /* Content */
+    .content {
+      padding: 32px 48px;
+    }
+
+    .option-panel {
+      display: none;
+    }
+
+    .option-panel.active {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Option Card */
+    .option-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      overflow: hidden;
+      margin-bottom: 24px;
+    }
+
+    .option-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .option-title {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .option-meta {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .height-badge {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 4px 10px;
+      background: var(--bg-elevated);
+      border-radius: 6px;
+      color: var(--text-secondary);
+    }
+
+    .option-preview {
+      padding: 24px;
+      background: var(--bg-deep);
+    }
+
+    .option-description {
+      padding: 20px 24px;
+      color: var(--text-secondary);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .option-description ul {
+      margin-top: 12px;
+      padding-left: 20px;
+    }
+
+    .option-description li {
+      margin-bottom: 6px;
+    }
+
+    .pros-cons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .pros, .cons {
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 12px;
+    }
+
+    .pros {
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+
+    .cons {
+      background: rgba(244, 63, 94, 0.1);
+      border: 1px solid rgba(244, 63, 94, 0.2);
+    }
+
+    .pros-title, .cons-title {
+      font-weight: 600;
+      margin-bottom: 8px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .pros-title { color: #10b981; }
+    .cons-title { color: #f43f5e; }
+
+    /* ═══════════════════════════════════════════════════════════
+       OPTION A: Header Integrated Timeline
+       ═══════════════════════════════════════════════════════════ */
+    .preview-a {
+      background: var(--bg-surface);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .preview-a .mock-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .preview-a .mock-header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .preview-a .mock-icon {
+      width: 28px;
+      height: 28px;
+      background: linear-gradient(135deg, var(--accent), #818cf8);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+    }
+
+    .preview-a .mock-title {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .preview-a .mock-id {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+      padding: 3px 8px;
+      background: var(--bg-surface);
+      border-radius: 4px;
+    }
+
+    .timeline-a {
+      height: 24px;
+      background: var(--bg-surface);
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      position: relative;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .timeline-a-track {
+      flex: 1;
+      height: 2px;
+      background: var(--border-subtle);
+      position: relative;
+      border-radius: 1px;
+    }
+
+    .timeline-a-dot {
+      position: absolute;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .timeline-a-dot:hover {
+      transform: translate(-50%, -50%) scale(1.8);
+      box-shadow: 0 0 8px currentColor;
+    }
+
+    .timeline-a-dot.selected {
+      width: 10px;
+      height: 10px;
+      box-shadow: 0 0 0 3px var(--accent-glow), 0 0 12px currentColor;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       OPTION B: Mini Progress Bar
+       ═══════════════════════════════════════════════════════════ */
+    .timeline-b {
+      height: 32px;
+      background: var(--bg-surface);
+      border-radius: 8px;
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .timeline-b-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    .timeline-b-track {
+      flex: 1;
+      height: 12px;
+      background: var(--bg-elevated);
+      border-radius: 6px;
+      overflow: hidden;
+      position: relative;
+      display: flex;
+    }
+
+    .timeline-b-segment {
+      height: 100%;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      position: relative;
+    }
+
+    .timeline-b-segment:hover {
+      filter: brightness(1.3);
+    }
+
+    .timeline-b-segment.selected::after {
+      content: '';
+      position: absolute;
+      inset: -2px;
+      border: 2px solid var(--accent);
+      border-radius: 4px;
+    }
+
+    .timeline-b-gap {
+      height: 100%;
+      background: transparent;
+    }
+
+    .timeline-b-time {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-dim);
+      white-space: nowrap;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       OPTION C: Sparkline + Dots
+       ═══════════════════════════════════════════════════════════ */
+    .timeline-c {
+      height: 48px;
+      background: var(--bg-surface);
+      border-radius: 8px;
+      padding: 8px 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .timeline-c-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .timeline-c-count {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .timeline-c-legend {
+      display: flex;
+      gap: 12px;
+    }
+
+    .timeline-c-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 9px;
+      color: var(--text-muted);
+    }
+
+    .timeline-c-legend-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 2px;
+    }
+
+    .timeline-c-track {
+      flex: 1;
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .timeline-c-line {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--border-default) 0%, var(--border-subtle) 100%);
+      border-radius: 1px;
+    }
+
+    .timeline-c-dot {
+      position: absolute;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      z-index: 1;
+    }
+
+    .timeline-c-dot:hover {
+      transform: translateX(-50%) scale(1.5);
+      z-index: 10;
+    }
+
+    .timeline-c-dot.selected {
+      box-shadow: 0 0 0 3px var(--accent-glow);
+      z-index: 10;
+    }
+
+    .timeline-c-axis {
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--text-dim);
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       OPTION D: Inline in TreeView
+       ═══════════════════════════════════════════════════════════ */
+    .preview-d {
+      display: flex;
+      background: var(--bg-surface);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .preview-d-sidebar {
+      width: 320px;
+      border-right: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .preview-d-sidebar-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .preview-d-sidebar-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .preview-d-sidebar-title span {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+    }
+
+    .timeline-d-mini {
+      height: 12px;
+      background: var(--bg-elevated);
+      border-radius: 6px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .timeline-d-mini-dot {
+      position: absolute;
+      width: 4px;
+      height: 100%;
+      border-radius: 2px;
+      cursor: pointer;
+      transition: all 0.1s ease;
+    }
+
+    .timeline-d-mini-dot:hover {
+      filter: brightness(1.4);
+    }
+
+    .timeline-d-mini-dot.selected {
+      box-shadow: 0 0 0 2px var(--accent);
+    }
+
+    .preview-d-tree {
+      flex: 1;
+      padding: 8px 0;
+      overflow-y: auto;
+      max-height: 300px;
+    }
+
+    .tree-node {
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: background 0.1s ease;
+      border-left: 2px solid transparent;
+    }
+
+    .tree-node:hover {
+      background: var(--bg-hover);
+    }
+
+    .tree-node.selected {
+      background: var(--bg-elevated);
+      border-left-color: var(--accent);
+    }
+
+    .tree-node-icon {
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      flex-shrink: 0;
+    }
+
+    .tree-node-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .tree-node-title {
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .tree-node-meta {
+      font-size: 10px;
+      color: var(--text-muted);
+      display: flex;
+      gap: 8px;
+    }
+
+    .tree-node-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .preview-d-main {
+      flex: 1;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       Comparison View
+       ═══════════════════════════════════════════════════════════ */
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+    }
+
+    .comparison-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .comparison-card-header {
+      padding: 12px 16px;
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .comparison-card-title {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .comparison-card-preview {
+      padding: 16px;
+      background: var(--bg-deep);
+      min-height: 80px;
+      display: flex;
+      align-items: center;
+    }
+
+    .full-width {
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <header class="page-header">
+    <h1 class="page-title">Timeline Design Options</h1>
+    <p class="page-subtitle">4가지 컴팩트 타임라인 디자인 비교 - Claude Code Tracer</p>
+  </header>
+
+  <nav class="tab-nav">
+    <button class="tab-btn active" data-tab="compare">
+      모든 옵션 비교
+    </button>
+    <button class="tab-btn" data-tab="option-a">
+      옵션 A <span class="badge">24px</span>
+    </button>
+    <button class="tab-btn" data-tab="option-b">
+      옵션 B <span class="badge">32px</span>
+    </button>
+    <button class="tab-btn" data-tab="option-c">
+      옵션 C <span class="badge">48px</span>
+    </button>
+    <button class="tab-btn" data-tab="option-d">
+      옵션 D <span class="badge">TreeView</span>
+    </button>
+  </nav>
+
+  <main class="content">
+    <!-- Compare All -->
+    <section class="option-panel active" id="compare">
+      <div class="comparison-grid">
+        <!-- Option A Mini -->
+        <div class="comparison-card">
+          <div class="comparison-card-header">
+            <span class="comparison-card-title">A. 헤더 통합형</span>
+            <span class="height-badge">24px</span>
+          </div>
+          <div class="comparison-card-preview">
+            <div class="preview-a full-width">
+              <div class="mock-header">
+                <div class="mock-header-left">
+                  <div class="mock-icon">⚡</div>
+                  <span class="mock-title">2026-01-09</span>
+                  <span class="mock-id">6d186dc8...</span>
+                </div>
+              </div>
+              <div class="timeline-a" id="timeline-a-compare"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Option B Mini -->
+        <div class="comparison-card">
+          <div class="comparison-card-header">
+            <span class="comparison-card-title">B. 미니 프로그레스 바</span>
+            <span class="height-badge">32px</span>
+          </div>
+          <div class="comparison-card-preview">
+            <div class="timeline-b full-width" id="timeline-b-compare"></div>
+          </div>
+        </div>
+
+        <!-- Option C Mini -->
+        <div class="comparison-card">
+          <div class="comparison-card-header">
+            <span class="comparison-card-title">C. 스파크라인 + 도트</span>
+            <span class="height-badge">48px</span>
+          </div>
+          <div class="comparison-card-preview">
+            <div class="timeline-c full-width" id="timeline-c-compare"></div>
+          </div>
+        </div>
+
+        <!-- Option D Mini -->
+        <div class="comparison-card">
+          <div class="comparison-card-header">
+            <span class="comparison-card-title">D. TreeView 내 인라인</span>
+            <span class="height-badge">Sidebar</span>
+          </div>
+          <div class="comparison-card-preview">
+            <div class="timeline-d-mini full-width" id="timeline-d-compare" style="height: 16px;"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Option A Detail -->
+    <section class="option-panel" id="option-a">
+      <div class="option-card">
+        <div class="option-header">
+          <h2 class="option-title">옵션 A: 헤더 통합형 (Integrated Header Bar)</h2>
+          <div class="option-meta">
+            <span class="height-badge">높이: 24px</span>
+          </div>
+        </div>
+        <div class="option-preview">
+          <div class="preview-a">
+            <div class="mock-header">
+              <div class="mock-header-left">
+                <div class="mock-icon">⚡</div>
+                <span class="mock-title">2026-01-09</span>
+                <span class="mock-id">6d186dc8-e141-4ee7</span>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <span style="font-size: 12px; color: var(--text-secondary);">Run</span>
+                <span style="font-size: 12px; color: var(--text-muted);">Feedback</span>
+                <span style="font-size: 12px; color: var(--text-muted);">Metadata</span>
+              </div>
+            </div>
+            <div class="timeline-a" id="timeline-a-full"></div>
+          </div>
+        </div>
+        <div class="option-description">
+          <p>헤더 바로 아래에 얇은 도트 라인으로 타임라인을 표시합니다. 각 점은 하나의 Turn(사용자 메시지)을 나타냅니다.</p>
+          <ul>
+            <li>각 점(●)이 하나의 Turn</li>
+            <li>점의 색상은 해당 Turn의 주요 도구 색상</li>
+            <li>선택된 Turn은 강조 표시</li>
+            <li>호버 시 확대 + 글로우 효과</li>
+          </ul>
+          <div class="pros-cons">
+            <div class="pros">
+              <div class="pros-title">장점</div>
+              <p>최소 공간 사용, 전체 흐름 파악 용이, 헤더와 자연스럽게 통합</p>
+            </div>
+            <div class="cons">
+              <div class="cons-title">단점</div>
+              <p>도구 수, 실행 시간 등 세부 정보 표현 제한</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Option B Detail -->
+    <section class="option-panel" id="option-b">
+      <div class="option-card">
+        <div class="option-header">
+          <h2 class="option-title">옵션 B: 미니 프로그레스 바 (Mini Progress Timeline)</h2>
+          <div class="option-meta">
+            <span class="height-badge">높이: 32px</span>
+          </div>
+        </div>
+        <div class="option-preview">
+          <div class="timeline-b" id="timeline-b-full" style="background: var(--bg-surface); border-radius: 8px;"></div>
+        </div>
+        <div class="option-description">
+          <p>단일 프로그레스 바 형태로 각 Turn을 색상 블록으로 표시합니다. 시간 비율이 직관적으로 표현됩니다.</p>
+          <ul>
+            <li>색상 블록으로 Turn 표시 (도구별 색상)</li>
+            <li>블록 너비 = 해당 Turn의 실행 시간 비율</li>
+            <li>빈 시간은 투명 처리</li>
+            <li>클릭으로 해당 Turn 선택</li>
+          </ul>
+          <div class="pros-cons">
+            <div class="pros">
+              <div class="pros-title">장점</div>
+              <p>시간 비율 직관적, 도구 분포 한눈에 파악, 연속적인 흐름 표현</p>
+            </div>
+            <div class="cons">
+              <div class="cons-title">단점</div>
+              <p>Sub-agent 구분 어려움, 짧은 Turn 클릭 어려움</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Option C Detail -->
+    <section class="option-panel" id="option-c">
+      <div class="option-card">
+        <div class="option-header">
+          <h2 class="option-title">옵션 C: 스파크라인 + 도트 (Sparkline with Dots)</h2>
+          <div class="option-meta">
+            <span class="height-badge">높이: 48px</span>
+          </div>
+        </div>
+        <div class="option-preview">
+          <div class="timeline-c" id="timeline-c-full" style="background: var(--bg-surface);"></div>
+        </div>
+        <div class="option-description">
+          <p>각 도트가 하나의 Turn을 나타내며, 도트의 크기로 도구 호출 수를 표현합니다.</p>
+          <ul>
+            <li>각 도트 = 하나의 Turn (role: "user")</li>
+            <li>도트 크기 = 도구 호출 수 (많을수록 큼)</li>
+            <li>도트 색상 = 주요 도구 색상</li>
+            <li>연결선으로 시간 흐름 표현</li>
+            <li>선택된 도트: 링 하이라이트</li>
+          </ul>
+          <div class="pros-cons">
+            <div class="pros">
+              <div class="pros-title">장점</div>
+              <p>최소 공간으로 최대 정보, Turn 수와 분포 직관적, 클릭/호버 인터랙션 명확</p>
+            </div>
+            <div class="cons">
+              <div class="cons-title">단점</div>
+              <p>옵션 A보다 높음, 많은 Turn에서 도트 겹침 가능</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Option D Detail -->
+    <section class="option-panel" id="option-d">
+      <div class="option-card">
+        <div class="option-header">
+          <h2 class="option-title">옵션 D: TreeView 내 인라인 (Inline in TreeView)</h2>
+          <div class="option-meta">
+            <span class="height-badge">Sidebar 통합</span>
+          </div>
+        </div>
+        <div class="option-preview">
+          <div class="preview-d" id="preview-d-full"></div>
+        </div>
+        <div class="option-description">
+          <p>TreeView 헤더에 미니 타임라인을 통합하고, 각 트리 노드와 타임라인이 동기화됩니다.</p>
+          <ul>
+            <li>TreeView 헤더에 미니 타임라인 통합</li>
+            <li>타임라인 클릭 → TreeView 스크롤 동기화</li>
+            <li>각 Turn 노드 옆에 해당 위치의 컬러 도트</li>
+            <li>메인 영역에서 별도 타임라인 공간 불필요</li>
+          </ul>
+          <div class="pros-cons">
+            <div class="pros">
+              <div class="pros-title">장점</div>
+              <p>메인 영역 공간 100% 활용, TreeView와 자연스러운 연결, 직관적인 네비게이션</p>
+            </div>
+            <div class="cons">
+              <div class="cons-title">단점</div>
+              <p>사이드바 접으면 타임라인도 숨김, 세로 공간 활용</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // Tab Navigation
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.option-panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.tab).classList.add('active');
+      });
+    });
+
+    // Generate mock turn data
+    const TOOLS = ['Bash', 'Read', 'Edit', 'Write', 'Task'];
+    const TOOL_COLORS = {
+      Bash: '#10b981',
+      Read: '#3b82f6',
+      Edit: '#f59e0b',
+      Write: '#8b5cf6',
+      Task: '#f97316'
+    };
+
+    function generateTurns(count = 30) {
+      const turns = [];
+      let time = 0;
+      for (let i = 0; i < count; i++) {
+        const tool = TOOLS[Math.floor(Math.random() * TOOLS.length)];
+        const duration = Math.random() * 50 + 5;
+        const gap = Math.random() * 20;
+        turns.push({
+          id: i,
+          startTime: time,
+          endTime: time + duration,
+          tool,
+          toolCount: Math.floor(Math.random() * 8) + 1,
+          title: `Turn ${i + 1}: ${['아이디어 브레인...', '나중에 사내에...', '옵션1과 옵션2...', 'API 설계 관점...'][i % 4]}`
+        });
+        time += duration + gap;
+      }
+      return { turns, totalDuration: time };
+    }
+
+    const { turns, totalDuration } = generateTurns(30);
+    let selectedTurn = 5;
+
+    // Render Timeline A
+    function renderTimelineA(containerId) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = `
+        <div class="timeline-a-track">
+          ${turns.map((t, i) => `
+            <div class="timeline-a-dot ${i === selectedTurn ? 'selected' : ''}"
+                 style="left: ${(t.startTime / totalDuration) * 100}%; background: ${TOOL_COLORS[t.tool]}; color: ${TOOL_COLORS[t.tool]};"
+                 data-turn="${i}"
+                 title="${t.title}"></div>
+          `).join('')}
+        </div>
+      `;
+      container.querySelectorAll('.timeline-a-dot').forEach(dot => {
+        dot.addEventListener('click', () => {
+          selectedTurn = parseInt(dot.dataset.turn);
+          renderAll();
+        });
+      });
+    }
+
+    // Render Timeline B
+    function renderTimelineB(containerId) {
+      const container = document.getElementById(containerId);
+      let html = `
+        <span class="timeline-b-label">Timeline</span>
+        <div class="timeline-b-track">
+      `;
+
+      let lastEnd = 0;
+      turns.forEach((t, i) => {
+        const gapWidth = ((t.startTime - lastEnd) / totalDuration) * 100;
+        const segWidth = ((t.endTime - t.startTime) / totalDuration) * 100;
+
+        if (gapWidth > 0.5) {
+          html += `<div class="timeline-b-gap" style="width: ${gapWidth}%"></div>`;
+        }
+        html += `<div class="timeline-b-segment ${i === selectedTurn ? 'selected' : ''}"
+                     style="width: ${Math.max(segWidth, 0.5)}%; background: ${TOOL_COLORS[t.tool]};"
+                     data-turn="${i}"
+                     title="${t.title}"></div>`;
+        lastEnd = t.endTime;
+      });
+
+      html += `</div><span class="timeline-b-time">${Math.round(totalDuration / 60)}m</span>`;
+      container.innerHTML = html;
+
+      container.querySelectorAll('.timeline-b-segment').forEach(seg => {
+        seg.addEventListener('click', () => {
+          selectedTurn = parseInt(seg.dataset.turn);
+          renderAll();
+        });
+      });
+    }
+
+    // Render Timeline C
+    function renderTimelineC(containerId) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = `
+        <div class="timeline-c-header">
+          <span class="timeline-c-count">${turns.length} turns</span>
+          <div class="timeline-c-legend">
+            ${Object.entries(TOOL_COLORS).map(([name, color]) => `
+              <div class="timeline-c-legend-item">
+                <div class="timeline-c-legend-dot" style="background: ${color}"></div>
+                ${name}
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        <div class="timeline-c-track">
+          <div class="timeline-c-line"></div>
+          ${turns.map((t, i) => {
+            const size = Math.max(4, Math.min(12, t.toolCount * 1.5));
+            return `
+              <div class="timeline-c-dot ${i === selectedTurn ? 'selected' : ''}"
+                   style="left: ${(t.startTime / totalDuration) * 100}%;
+                          width: ${size}px; height: ${size}px;
+                          background: ${TOOL_COLORS[t.tool]};
+                          transform: translateX(-50%);"
+                   data-turn="${i}"
+                   title="${t.title} (${t.toolCount} tools)"></div>
+            `;
+          }).join('')}
+        </div>
+        <div class="timeline-c-axis">
+          <span>0s</span>
+          <span>${Math.round(totalDuration / 60)}m</span>
+        </div>
+      `;
+
+      container.querySelectorAll('.timeline-c-dot').forEach(dot => {
+        dot.addEventListener('click', () => {
+          selectedTurn = parseInt(dot.dataset.turn);
+          renderAll();
+        });
+      });
+    }
+
+    // Render Timeline D Mini
+    function renderTimelineDMini(containerId) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = turns.map((t, i) => `
+        <div class="timeline-d-mini-dot ${i === selectedTurn ? 'selected' : ''}"
+             style="left: ${(t.startTime / totalDuration) * 100}%; background: ${TOOL_COLORS[t.tool]};"
+             data-turn="${i}"></div>
+      `).join('');
+
+      container.querySelectorAll('.timeline-d-mini-dot').forEach(dot => {
+        dot.addEventListener('click', () => {
+          selectedTurn = parseInt(dot.dataset.turn);
+          renderAll();
+        });
+      });
+    }
+
+    // Render Full Preview D
+    function renderPreviewD(containerId) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = `
+        <div class="preview-d-sidebar">
+          <div class="preview-d-sidebar-header">
+            <div class="preview-d-sidebar-title">
+              <span>Trace Tree</span>
+            </div>
+            <div class="timeline-d-mini" id="timeline-d-sidebar"></div>
+          </div>
+          <div class="preview-d-tree">
+            ${turns.slice(0, 10).map((t, i) => `
+              <div class="tree-node ${i === selectedTurn ? 'selected' : ''}" data-turn="${i}">
+                <div class="tree-node-icon" style="background: ${TOOL_COLORS[t.tool]}20; color: ${TOOL_COLORS[t.tool]};">👤</div>
+                <div class="tree-node-content">
+                  <div class="tree-node-title">${t.title}</div>
+                  <div class="tree-node-meta">
+                    <span>${t.toolCount} tools</span>
+                    <span>${Math.round(t.endTime - t.startTime)}ms</span>
+                  </div>
+                </div>
+                <div class="tree-node-dot" style="background: ${TOOL_COLORS[t.tool]}"></div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        <div class="preview-d-main">
+          <div style="text-align: center;">
+            <div style="font-size: 24px; margin-bottom: 8px;">👆</div>
+            <div>Select an item from the trace tree</div>
+          </div>
+        </div>
+      `;
+
+      renderTimelineDMini('timeline-d-sidebar');
+
+      container.querySelectorAll('.tree-node').forEach(node => {
+        node.addEventListener('click', () => {
+          selectedTurn = parseInt(node.dataset.turn);
+          renderAll();
+        });
+      });
+    }
+
+    function renderAll() {
+      // Compare view
+      renderTimelineA('timeline-a-compare');
+      renderTimelineB('timeline-b-compare');
+      renderTimelineC('timeline-c-compare');
+      renderTimelineDMini('timeline-d-compare');
+
+      // Full views
+      renderTimelineA('timeline-a-full');
+      renderTimelineB('timeline-b-full');
+      renderTimelineC('timeline-c-full');
+      renderPreviewD('preview-d-full');
+    }
+
+    // Initial render
+    renderAll();
+  </script>
+</body>
+</html>

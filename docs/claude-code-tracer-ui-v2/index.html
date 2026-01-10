@@ -1,0 +1,1896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Claude Code Tracer - UI Mockup v2</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* Core colors */
+      --bg-void: #08090c;
+      --bg-deep: #0d0f14;
+      --bg-surface: #13161d;
+      --bg-elevated: #1a1e28;
+      --bg-hover: #242936;
+
+      /* Borders */
+      --border-subtle: rgba(255, 255, 255, 0.06);
+      --border-default: rgba(255, 255, 255, 0.1);
+      --border-strong: rgba(255, 255, 255, 0.15);
+
+      /* Text */
+      --text-primary: #f4f4f5;
+      --text-secondary: #a1a1aa;
+      --text-muted: #71717a;
+      --text-faint: #52525b;
+
+      /* Accent colors - Electric spectrum */
+      --accent-violet: #8b5cf6;
+      --accent-violet-glow: rgba(139, 92, 246, 0.3);
+      --accent-cyan: #06b6d4;
+      --accent-cyan-glow: rgba(6, 182, 212, 0.3);
+      --accent-amber: #f59e0b;
+      --accent-amber-glow: rgba(245, 158, 11, 0.3);
+      --accent-emerald: #10b981;
+      --accent-emerald-glow: rgba(16, 185, 129, 0.3);
+      --accent-rose: #f43f5e;
+      --accent-rose-glow: rgba(244, 63, 94, 0.3);
+      --accent-blue: #3b82f6;
+      --accent-blue-glow: rgba(59, 130, 246, 0.3);
+
+      /* Tool colors */
+      --tool-bash: #10b981;
+      --tool-read: #3b82f6;
+      --tool-edit: #f59e0b;
+      --tool-write: #8b5cf6;
+      --tool-grep: #ec4899;
+      --tool-task: #f97316;
+
+      /* Status */
+      --status-complete: #10b981;
+      --status-running: #3b82f6;
+      --status-error: #f43f5e;
+
+      /* Fonts */
+      --font-sans: 'Plus Jakarta Sans', -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+
+      /* Spacing */
+      --space-xs: 4px;
+      --space-sm: 8px;
+      --space-md: 12px;
+      --space-lg: 16px;
+      --space-xl: 24px;
+      --space-2xl: 32px;
+      --space-3xl: 48px;
+
+      /* Radius */
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-lg: 10px;
+      --radius-xl: 14px;
+
+      /* Transitions */
+      --transition-fast: 0.15s ease;
+      --transition-normal: 0.25s ease;
+      --transition-slow: 0.4s ease;
+
+      /* Sidebar */
+      --sidebar-width: 320px;
+      --sidebar-collapsed: 48px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg-void);
+      color: var(--text-primary);
+      line-height: 1.5;
+      overflow: hidden;
+      height: 100vh;
+    }
+
+    /* ========== PAGE NAVIGATION ========== */
+    .page-nav {
+      position: fixed;
+      top: var(--space-lg);
+      right: var(--space-lg);
+      z-index: 1000;
+      display: flex;
+      gap: var(--space-sm);
+      background: var(--bg-elevated);
+      padding: var(--space-xs);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-default);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    .page-nav-btn {
+      padding: var(--space-sm) var(--space-lg);
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border-radius: var(--radius-md);
+      transition: all var(--transition-fast);
+    }
+
+    .page-nav-btn:hover {
+      color: var(--text-primary);
+      background: var(--bg-hover);
+    }
+
+    .page-nav-btn.active {
+      background: var(--accent-violet);
+      color: white;
+    }
+
+    /* ========== PAGE CONTAINERS ========== */
+    .page {
+      display: none;
+      height: 100vh;
+    }
+
+    .page.active {
+      display: flex;
+    }
+
+    /* ========== SESSION DETAIL PAGE ========== */
+    .session-detail {
+      flex-direction: row;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: var(--sidebar-width);
+      background: var(--bg-deep);
+      border-right: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      transition: width var(--transition-normal);
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .sidebar.collapsed {
+      width: var(--sidebar-collapsed);
+    }
+
+    .sidebar-header {
+      padding: var(--space-lg);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 56px;
+    }
+
+    .sidebar-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+
+    .sidebar.collapsed .sidebar-title span {
+      display: none;
+    }
+
+    .sidebar-actions {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+    }
+
+    .sidebar.collapsed .sidebar-actions {
+      display: none;
+    }
+
+    .icon-btn {
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .icon-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-secondary);
+      border-color: var(--border-subtle);
+    }
+
+    .sidebar-toggle {
+      position: absolute;
+      right: -12px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 24px;
+      height: 48px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-default);
+      border-radius: 0 var(--radius-md) var(--radius-md) 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: all var(--transition-fast);
+      z-index: 10;
+    }
+
+    .sidebar-toggle:hover {
+      color: var(--text-primary);
+      background: var(--bg-hover);
+    }
+
+    .sidebar.collapsed .sidebar-toggle svg {
+      transform: rotate(180deg);
+    }
+
+    /* View selector */
+    .view-selector {
+      padding: var(--space-md) var(--space-lg);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .sidebar.collapsed .view-selector {
+      display: none;
+    }
+
+    .view-dropdown {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: var(--space-sm) var(--space-md);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      color: var(--text-secondary);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      width: 100%;
+    }
+
+    .view-dropdown:hover {
+      border-color: var(--border-default);
+      color: var(--text-primary);
+    }
+
+    .view-dropdown svg {
+      margin-left: auto;
+    }
+
+    /* Trace tree */
+    .trace-tree {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--space-md);
+    }
+
+    .sidebar.collapsed .trace-tree {
+      display: none;
+    }
+
+    .tree-node {
+      margin-bottom: var(--space-xs);
+    }
+
+    .tree-node-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: var(--space-sm) var(--space-md);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      border: 1px solid transparent;
+    }
+
+    .tree-node-header:hover {
+      background: var(--bg-hover);
+    }
+
+    .tree-node-header.selected {
+      background: var(--accent-violet-glow);
+      border-color: var(--accent-violet);
+    }
+
+    .tree-node-header.selected .tree-node-name {
+      color: var(--accent-violet);
+    }
+
+    .tree-expand {
+      width: 16px;
+      height: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      transition: transform var(--transition-fast);
+    }
+
+    .tree-expand.expanded {
+      transform: rotate(90deg);
+    }
+
+    .tree-icon {
+      width: 20px;
+      height: 20px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .tree-icon.claude {
+      background: linear-gradient(135deg, #d97706, #f59e0b);
+      color: white;
+    }
+
+    .tree-icon.model {
+      background: var(--accent-violet);
+      color: white;
+    }
+
+    .tree-icon.tool-edit {
+      background: var(--tool-edit);
+      color: var(--bg-void);
+    }
+
+    .tree-icon.tool-bash {
+      background: var(--tool-bash);
+      color: white;
+    }
+
+    .tree-icon.tool-read {
+      background: var(--tool-read);
+      color: white;
+    }
+
+    .tree-node-name {
+      font-size: 13px;
+      color: var(--text-primary);
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .tree-node-meta {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .tree-children {
+      margin-left: var(--space-xl);
+      border-left: 1px solid var(--border-subtle);
+      padding-left: var(--space-sm);
+    }
+
+    .tree-node-badge {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 6px;
+      background: var(--accent-emerald-glow);
+      border-radius: 10px;
+      font-size: 10px;
+      color: var(--accent-emerald);
+    }
+
+    /* Main content */
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--bg-void);
+    }
+
+    /* Main header */
+    .main-header {
+      padding: var(--space-lg) var(--space-xl);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-deep);
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: var(--space-lg);
+    }
+
+    .session-title {
+      display: flex;
+      align-items: center;
+      gap: var(--space-md);
+    }
+
+    .session-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--accent-violet), #6366f1);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    .session-name {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .session-id-btn {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+      padding: var(--space-xs) var(--space-sm);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .session-id-btn:hover {
+      border-color: var(--accent-violet);
+      color: var(--accent-violet);
+    }
+
+    .header-tabs {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+      margin-left: var(--space-xl);
+      border-left: 1px solid var(--border-subtle);
+      padding-left: var(--space-xl);
+    }
+
+    .header-tab {
+      padding: var(--space-sm) var(--space-lg);
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border-radius: var(--radius-md);
+      transition: all var(--transition-fast);
+      position: relative;
+    }
+
+    .header-tab:hover {
+      color: var(--text-primary);
+      background: var(--bg-hover);
+    }
+
+    .header-tab.active {
+      color: var(--text-primary);
+    }
+
+    .header-tab.active::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: var(--space-lg);
+      right: var(--space-lg);
+      height: 2px;
+      background: var(--accent-violet);
+      border-radius: 2px;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+
+    .header-btn {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: var(--space-sm) var(--space-md);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      color: var(--text-secondary);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .header-btn:hover {
+      border-color: var(--border-default);
+      color: var(--text-primary);
+      background: var(--bg-hover);
+    }
+
+    .header-btn.primary {
+      background: var(--accent-violet);
+      border-color: var(--accent-violet);
+      color: white;
+    }
+
+    .header-btn.primary:hover {
+      background: #7c3aed;
+    }
+
+    .status-indicator {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-emerald);
+      box-shadow: 0 0 8px var(--accent-emerald-glow);
+    }
+
+    /* Timeline section */
+    .timeline-section {
+      padding: var(--space-xl);
+      border-bottom: 1px solid var(--border-subtle);
+      background: var(--bg-deep);
+    }
+
+    .timeline-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--space-lg);
+    }
+
+    .timeline-title {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+    }
+
+    .timeline-legend {
+      display: flex;
+      align-items: center;
+      gap: var(--space-lg);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+    }
+
+    .timeline-container {
+      position: relative;
+      background: var(--bg-surface);
+      border-radius: var(--radius-lg);
+      padding: var(--space-lg);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .timeline-axis {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: var(--space-md);
+      padding: 0 var(--space-sm);
+    }
+
+    .timeline-tick {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-faint);
+    }
+
+    .timeline-lanes {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-md);
+    }
+
+    .timeline-lane {
+      display: flex;
+      align-items: center;
+      gap: var(--space-md);
+    }
+
+    .lane-label {
+      width: 100px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      flex-shrink: 0;
+    }
+
+    .lane-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+
+    .lane-track {
+      flex: 1;
+      height: 32px;
+      background: var(--bg-elevated);
+      border-radius: var(--radius-md);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .lane-bar {
+      position: absolute;
+      top: 4px;
+      bottom: 4px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      display: flex;
+      align-items: center;
+      padding: 0 var(--space-sm);
+      gap: var(--space-xs);
+      font-size: 10px;
+      font-weight: 600;
+      color: white;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    .lane-bar:hover {
+      transform: scaleY(1.15);
+      z-index: 10;
+    }
+
+    .lane-bar.selected {
+      outline: 2px solid white;
+      outline-offset: 1px;
+      z-index: 20;
+    }
+
+    .lane-bar-tools {
+      font-weight: 400;
+      opacity: 0.8;
+      margin-left: auto;
+    }
+
+    /* Detail panel */
+    .detail-panel {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--space-xl);
+    }
+
+    .detail-section {
+      margin-bottom: var(--space-xl);
+    }
+
+    .detail-section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-md);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .detail-section-header:hover {
+      background: var(--bg-elevated);
+    }
+
+    .detail-section-title {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .detail-section-chevron {
+      color: var(--text-muted);
+      transition: transform var(--transition-fast);
+    }
+
+    .detail-section-header.collapsed .detail-section-chevron {
+      transform: rotate(-90deg);
+    }
+
+    .detail-section-content {
+      padding: var(--space-lg);
+      background: var(--bg-deep);
+      border: 1px solid var(--border-subtle);
+      border-top: none;
+      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    }
+
+    .detail-section-header.collapsed + .detail-section-content {
+      display: none;
+    }
+
+    .message-block {
+      margin-bottom: var(--space-lg);
+    }
+
+    .message-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: var(--space-sm);
+    }
+
+    .message-content {
+      font-size: 14px;
+      color: var(--text-primary);
+      line-height: 1.6;
+    }
+
+    .ai-message {
+      padding: var(--space-lg);
+      background: var(--bg-surface);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .ai-label {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent-violet);
+      margin-bottom: var(--space-md);
+    }
+
+    .reasoning-block {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-md);
+      padding: var(--space-md);
+      background: var(--bg-elevated);
+      border-radius: var(--radius-md);
+      margin-bottom: var(--space-md);
+      border-left: 2px solid var(--accent-amber);
+    }
+
+    .reasoning-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--accent-amber);
+      flex-shrink: 0;
+    }
+
+    .reasoning-content {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    .tool-call {
+      margin-top: var(--space-lg);
+      padding: var(--space-lg);
+      background: var(--bg-elevated);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .tool-call-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-md);
+      margin-bottom: var(--space-md);
+    }
+
+    .tool-call-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .tool-call-id {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .tool-call-content {
+      background: var(--bg-void);
+      border-radius: var(--radius-md);
+      padding: var(--space-md);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-secondary);
+      overflow-x: auto;
+      line-height: 1.6;
+    }
+
+    .json-key {
+      color: var(--accent-cyan);
+    }
+
+    .json-string {
+      color: var(--accent-emerald);
+    }
+
+    .json-toggle {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+      margin-top: var(--space-md);
+      font-size: 12px;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: color var(--transition-fast);
+    }
+
+    .json-toggle:hover {
+      color: var(--text-secondary);
+    }
+
+    /* ========== SESSIONS LIST PAGE ========== */
+    .sessions-list {
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .list-header {
+      padding: var(--space-xl) var(--space-2xl);
+      border-bottom: 1px solid var(--border-subtle);
+      background: var(--bg-deep);
+    }
+
+    .list-header-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: var(--space-xl);
+    }
+
+    .list-title-section h1 {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: var(--space-xs);
+      letter-spacing: -0.02em;
+    }
+
+    .list-subtitle {
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    .list-header-actions {
+      display: flex;
+      align-items: center;
+      gap: var(--space-md);
+    }
+
+    .search-box {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: var(--space-sm) var(--space-lg);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      min-width: 280px;
+      transition: all var(--transition-fast);
+    }
+
+    .search-box:focus-within {
+      border-color: var(--accent-violet);
+      box-shadow: 0 0 0 3px var(--accent-violet-glow);
+    }
+
+    .search-box svg {
+      color: var(--text-muted);
+    }
+
+    .search-box input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 14px;
+    }
+
+    .search-box input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .search-kbd {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-faint);
+      background: var(--bg-elevated);
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .filter-btn {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: var(--space-sm) var(--space-lg);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      color: var(--text-secondary);
+      font-size: 14px;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .filter-btn:hover {
+      border-color: var(--border-default);
+      color: var(--text-primary);
+    }
+
+    .refresh-btn {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: var(--space-sm) var(--space-lg);
+      background: var(--accent-violet);
+      border: none;
+      border-radius: var(--radius-lg);
+      color: white;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .refresh-btn:hover {
+      background: #7c3aed;
+    }
+
+    /* Stats cards */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--space-lg);
+    }
+
+    .stat-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-xl);
+      padding: var(--space-xl);
+      transition: all var(--transition-fast);
+    }
+
+    .stat-card:hover {
+      border-color: var(--border-default);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    .stat-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: var(--space-md);
+    }
+
+    .stat-value {
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+      font-feature-settings: 'tnum';
+    }
+
+    .stat-change {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+      margin-top: var(--space-sm);
+      font-size: 12px;
+    }
+
+    .stat-change.positive {
+      color: var(--accent-emerald);
+    }
+
+    .stat-change.negative {
+      color: var(--accent-rose);
+    }
+
+    .stat-change.neutral {
+      color: var(--accent-violet);
+    }
+
+    /* Filter chips */
+    .filter-section {
+      padding: var(--space-lg) var(--space-2xl);
+      border-bottom: 1px solid var(--border-subtle);
+      background: var(--bg-deep);
+    }
+
+    .filter-chips {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      flex-wrap: wrap;
+    }
+
+    .filter-chip {
+      padding: var(--space-sm) var(--space-md);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 20px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+    }
+
+    .filter-chip:hover {
+      border-color: var(--border-default);
+      color: var(--text-primary);
+    }
+
+    .filter-chip.active {
+      background: var(--accent-violet);
+      border-color: var(--accent-violet);
+      color: white;
+    }
+
+    .filter-chip .chip-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+
+    .filter-divider {
+      width: 1px;
+      height: 20px;
+      background: var(--border-subtle);
+      margin: 0 var(--space-sm);
+    }
+
+    /* Sessions table */
+    .sessions-table-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--space-xl) var(--space-2xl);
+    }
+
+    .sessions-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .sessions-table th {
+      text-align: left;
+      padding: var(--space-md) var(--space-lg);
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border-subtle);
+      position: sticky;
+      top: 0;
+      background: var(--bg-void);
+    }
+
+    .sessions-table td {
+      padding: var(--space-lg);
+      border-bottom: 1px solid var(--border-subtle);
+      vertical-align: middle;
+    }
+
+    .sessions-table tr {
+      transition: background var(--transition-fast);
+      cursor: pointer;
+    }
+
+    .sessions-table tbody tr:hover {
+      background: var(--bg-surface);
+    }
+
+    .session-cell {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xs);
+    }
+
+    .session-project {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .session-id {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .session-started {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .session-duration {
+      font-family: var(--font-mono);
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--accent-cyan);
+    }
+
+    .session-tokens {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .tools-dots {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .tool-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-xs);
+      padding: var(--space-xs) var(--space-md);
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .status-badge.complete {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--status-complete);
+    }
+
+    .status-badge.running {
+      background: rgba(59, 130, 246, 0.15);
+      color: var(--status-running);
+    }
+
+    .status-badge.error {
+      background: rgba(244, 63, 94, 0.15);
+      color: var(--status-error);
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .status-badge.running .status-dot {
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--bg-hover);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--border-default);
+    }
+  </style>
+</head>
+<body>
+  <!-- Page Navigation -->
+  <nav class="page-nav">
+    <button class="page-nav-btn active" onclick="showPage('detail')">Session Detail</button>
+    <button class="page-nav-btn" onclick="showPage('list')">Sessions List</button>
+  </nav>
+
+  <!-- ========== SESSION DETAIL PAGE ========== -->
+  <div id="page-detail" class="page session-detail active">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+          </svg>
+          <span>TRACE</span>
+        </div>
+        <div class="sidebar-actions">
+          <button class="icon-btn" title="Settings">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v10"/>
+            </svg>
+          </button>
+          <button class="icon-btn" title="Expand">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="view-selector">
+        <button class="view-dropdown">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/>
+          </svg>
+          Waterfall
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="trace-tree">
+        <!-- Root node -->
+        <div class="tree-node">
+          <div class="tree-node-header selected">
+            <span class="tree-expand expanded">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            </span>
+            <div class="tree-icon claude">⚡</div>
+            <span class="tree-node-name">Claude Code</span>
+            <span class="tree-node-badge">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </span>
+          </div>
+          <div class="tree-children">
+            <!-- Claude model node -->
+            <div class="tree-node">
+              <div class="tree-node-header">
+                <span class="tree-expand expanded">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="9 18 15 12 9 6"/>
+                  </svg>
+                </span>
+                <div class="tree-icon model">C</div>
+                <span class="tree-node-name">Claude</span>
+                <span class="tree-node-meta">claude-sonnet-4-5</span>
+              </div>
+              <div class="tree-children">
+                <!-- Edit tool -->
+                <div class="tree-node">
+                  <div class="tree-node-header">
+                    <span class="tree-expand" style="visibility: hidden;">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9 18 15 12 9 6"/>
+                      </svg>
+                    </span>
+                    <div class="tree-icon tool-edit">✎</div>
+                    <span class="tree-node-name">Edit</span>
+                  </div>
+                </div>
+                <!-- Another Claude call -->
+                <div class="tree-node">
+                  <div class="tree-node-header">
+                    <span class="tree-expand" style="visibility: hidden;">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9 18 15 12 9 6"/>
+                      </svg>
+                    </span>
+                    <div class="tree-icon model">C</div>
+                    <span class="tree-node-name">Claude</span>
+                    <span class="tree-node-meta">claude-sonnet-4-5</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button class="sidebar-toggle" onclick="toggleSidebar()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+      </button>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Header -->
+      <header class="main-header">
+        <div class="header-left">
+          <div class="session-title">
+            <div class="session-icon">⚡</div>
+            <span class="session-name">Claude Code</span>
+          </div>
+          <button class="session-id-btn">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+            </svg>
+            ID
+          </button>
+          <div class="header-tabs">
+            <button class="header-tab active">Run</button>
+            <button class="header-tab">Feedback</button>
+            <button class="header-tab">Metadata</button>
+          </div>
+        </div>
+        <div class="header-right">
+          <button class="header-btn">
+            <span class="status-indicator"></span>
+            Run in Studio
+          </button>
+          <button class="header-btn">Thread</button>
+          <button class="header-btn">
+            Add to
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+          <button class="icon-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+          </button>
+          <button class="icon-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+              <polyline points="15 3 21 3 21 9"/>
+              <line x1="10" y1="14" x2="21" y2="3"/>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Timeline -->
+      <section class="timeline-section">
+        <div class="timeline-header">
+          <span class="timeline-title">Timeline</span>
+          <div class="timeline-legend">
+            <div class="legend-item">
+              <div class="legend-dot" style="background: var(--tool-bash);"></div>
+              Bash
+            </div>
+            <div class="legend-item">
+              <div class="legend-dot" style="background: var(--tool-read);"></div>
+              Read
+            </div>
+            <div class="legend-item">
+              <div class="legend-dot" style="background: var(--tool-edit);"></div>
+              Edit
+            </div>
+            <div class="legend-item">
+              <div class="legend-dot" style="background: var(--tool-write);"></div>
+              Write
+            </div>
+            <div class="legend-item">
+              <div class="legend-dot" style="background: var(--tool-task);"></div>
+              Task
+            </div>
+          </div>
+        </div>
+        <div class="timeline-container">
+          <div class="timeline-axis">
+            <span class="timeline-tick">0s</span>
+            <span class="timeline-tick">1m</span>
+            <span class="timeline-tick">2m</span>
+            <span class="timeline-tick">3m</span>
+            <span class="timeline-tick">4m</span>
+            <span class="timeline-tick">5m</span>
+          </div>
+          <div class="timeline-lanes">
+            <div class="timeline-lane">
+              <div class="lane-label">
+                <div class="lane-dot" style="background: var(--accent-violet);"></div>
+                Main Agent
+              </div>
+              <div class="lane-track">
+                <div class="lane-bar selected" style="left: 0%; width: 8%; background: linear-gradient(90deg, var(--tool-read), var(--tool-edit));">
+                  T1
+                </div>
+                <div class="lane-bar" style="left: 10%; width: 75%; background: linear-gradient(90deg, var(--tool-bash), var(--tool-read), var(--tool-edit));">
+                  T2
+                  <span class="lane-bar-tools">9 tools</span>
+                </div>
+              </div>
+            </div>
+            <div class="timeline-lane">
+              <div class="lane-label">
+                <div class="lane-dot" style="background: var(--accent-cyan);"></div>
+                Sub-agent 1
+              </div>
+              <div class="lane-track">
+                <div class="lane-bar" style="left: 25%; width: 20%; background: var(--tool-task);">
+                  Task
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Detail Panel -->
+      <div class="detail-panel">
+        <!-- Input Section -->
+        <div class="detail-section">
+          <div class="detail-section-header">
+            <span class="detail-section-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+              Input
+            </span>
+            <span class="detail-section-chevron">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </span>
+          </div>
+          <div class="detail-section-content">
+            <div class="message-block">
+              <div class="message-label">Human</div>
+              <div class="message-content">lets try option 2</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Output Section -->
+        <div class="detail-section">
+          <div class="detail-section-header">
+            <span class="detail-section-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+              </svg>
+              Output
+              <span style="margin-left: var(--space-sm); font-size: 11px; color: var(--text-muted);">messages</span>
+              <span style="background: var(--bg-hover); padding: 2px 6px; border-radius: 10px; font-size: 11px; margin-left: var(--space-xs);">3</span>
+            </span>
+            <span class="detail-section-chevron">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </span>
+          </div>
+          <div class="detail-section-content">
+            <div class="ai-message">
+              <div class="ai-label">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/>
+                  <path d="M12 8h.01"/>
+                </svg>
+                AI
+              </div>
+
+              <div class="reasoning-block">
+                <span class="reasoning-label">Reasoning</span>
+                <p class="reasoning-content">The user wants to try option 2, which is to disable tracing temporarily to confirm if the hook is causing the hang. I need to edit the settings.loc...</p>
+              </div>
+
+              <div class="tool-call">
+                <div class="tool-call-header">
+                  <div class="tree-icon tool-edit" style="width: 24px; height: 24px; font-size: 12px;">✎</div>
+                  <span class="tool-call-name">Edit</span>
+                  <span class="tool-call-id">toolu_01NoWMxEYMwwKT6pzEcBZyte</span>
+                </div>
+                <div class="tool-call-content">
+{
+  <span class="json-key">"file_path"</span>: <span class="json-string">"/Users/tanushreesharma/tracing-claude-code/.claude/settings.local.json"</span>,
+  <span class="json-key">"new_string"</span>: <span class="json-string">"  \"env\": {\n    \"TRACE_TO_LANGSMITH\": \"false\",\n    \"CC_LANGSMITH_API_KEY\": \"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\",\n..."</span>,
+  <span class="json-key">"old_string"</span>: <span class="json-string">"  \"env\": {\n    \"TRACE_TO_LANGSMITH\": \"true\",\n..."</span>
+}
+                </div>
+                <div class="json-toggle">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="6 9 12 15 18 9"/>
+                  </svg>
+                  JSON
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ========== SESSIONS LIST PAGE ========== -->
+  <div id="page-list" class="page sessions-list">
+    <header class="list-header">
+      <div class="list-header-top">
+        <div class="list-title-section">
+          <h1>Sessions</h1>
+          <p class="list-subtitle">24 sessions traced this week</p>
+        </div>
+        <div class="list-header-actions">
+          <div class="search-box">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text" placeholder="Search sessions...">
+            <span class="search-kbd">⌘K</span>
+          </div>
+          <button class="filter-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+            </svg>
+            Filter
+          </button>
+          <button class="refresh-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            </svg>
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Total Sessions</div>
+          <div class="stat-value">248</div>
+          <div class="stat-change positive">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="18 15 12 9 6 15"/>
+            </svg>
+            12% from last week
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Avg Duration</div>
+          <div class="stat-value">4m 32s</div>
+          <div class="stat-change negative">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+            8% slower
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Total Tokens</div>
+          <div class="stat-value">1.2M</div>
+          <div class="stat-change positive">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="18 15 12 9 6 15"/>
+            </svg>
+            5% efficiency
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Tool Calls</div>
+          <div class="stat-value">3,847</div>
+          <div class="stat-change neutral">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="18 15 12 9 6 15"/>
+            </svg>
+            Normal range
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="filter-section">
+      <div class="filter-chips">
+        <button class="filter-chip active">All Sessions</button>
+        <button class="filter-chip">Today</button>
+        <button class="filter-chip">This Week</button>
+        <div class="filter-divider"></div>
+        <button class="filter-chip">
+          <span class="chip-dot" style="background: var(--tool-bash);"></span>
+          Bash
+        </button>
+        <button class="filter-chip">
+          <span class="chip-dot" style="background: var(--tool-task);"></span>
+          Task (Sub-agent)
+        </button>
+        <button class="filter-chip">
+          <span class="chip-dot" style="background: var(--tool-edit);"></span>
+          Edit
+        </button>
+      </div>
+    </div>
+
+    <div class="sessions-table-container">
+      <table class="sessions-table">
+        <thead>
+          <tr>
+            <th>Session</th>
+            <th>Started</th>
+            <th>Duration</th>
+            <th>Tokens</th>
+            <th>Tools</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr onclick="showPage('detail')">
+            <td>
+              <div class="session-cell">
+                <span class="session-project">claude-code-tracer</span>
+                <span class="session-id">6d186dc8-e141-4ee7</span>
+              </div>
+            </td>
+            <td class="session-started">Jan 9, 10:32 AM</td>
+            <td class="session-duration">12m 45s</td>
+            <td class="session-tokens">48.2K</td>
+            <td>
+              <div class="tools-dots">
+                <div class="tool-dot" style="background: var(--tool-bash);"></div>
+                <div class="tool-dot" style="background: var(--tool-read);"></div>
+                <div class="tool-dot" style="background: var(--tool-edit);"></div>
+              </div>
+            </td>
+            <td>
+              <span class="status-badge complete">
+                <span class="status-dot"></span>
+                Complete
+              </span>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <div class="session-cell">
+                <span class="session-project">memo/2026-01-09</span>
+                <span class="session-id">a3f82b91-7c44-4d12</span>
+              </div>
+            </td>
+            <td class="session-started">Jan 9, 09:15 AM</td>
+            <td class="session-duration">8m 22s</td>
+            <td class="session-tokens">32.1K</td>
+            <td>
+              <div class="tools-dots">
+                <div class="tool-dot" style="background: var(--tool-bash);"></div>
+                <div class="tool-dot" style="background: var(--tool-read);"></div>
+                <div class="tool-dot" style="background: var(--tool-write);"></div>
+              </div>
+            </td>
+            <td>
+              <span class="status-badge complete">
+                <span class="status-dot"></span>
+                Complete
+              </span>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <div class="session-cell">
+                <span class="session-project">frontend-app</span>
+                <span class="session-id">f7e91c23-8a55-4b67</span>
+              </div>
+            </td>
+            <td class="session-started">Jan 9, 08:45 AM</td>
+            <td class="session-duration">5m 18s</td>
+            <td class="session-tokens">21.4K</td>
+            <td>
+              <div class="tools-dots">
+                <div class="tool-dot" style="background: var(--tool-read);"></div>
+                <div class="tool-dot" style="background: var(--tool-edit);"></div>
+              </div>
+            </td>
+            <td>
+              <span class="status-badge running">
+                <span class="status-dot"></span>
+                Running
+              </span>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <div class="session-cell">
+                <span class="session-project">api-server</span>
+                <span class="session-id">c2d45f78-1b33-4e89</span>
+              </div>
+            </td>
+            <td class="session-started">Jan 8, 11:22 PM</td>
+            <td class="session-duration">15m 02s</td>
+            <td class="session-tokens">67.8K</td>
+            <td>
+              <div class="tools-dots">
+                <div class="tool-dot" style="background: var(--tool-bash);"></div>
+                <div class="tool-dot" style="background: var(--tool-read);"></div>
+                <div class="tool-dot" style="background: var(--tool-edit);"></div>
+                <div class="tool-dot" style="background: var(--tool-task);"></div>
+              </div>
+            </td>
+            <td>
+              <span class="status-badge error">
+                <span class="status-dot"></span>
+                Error
+              </span>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <div class="session-cell">
+                <span class="session-project">data-pipeline</span>
+                <span class="session-id">89b12e45-6f77-4a23</span>
+              </div>
+            </td>
+            <td class="session-started">Jan 8, 10:05 PM</td>
+            <td class="session-duration">3m 44s</td>
+            <td class="session-tokens">15.2K</td>
+            <td>
+              <div class="tools-dots">
+                <div class="tool-dot" style="background: var(--tool-read);"></div>
+                <div class="tool-dot" style="background: var(--tool-write);"></div>
+              </div>
+            </td>
+            <td>
+              <span class="status-badge complete">
+                <span class="status-dot"></span>
+                Complete
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    // Page navigation
+    function showPage(pageId) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.page-nav-btn').forEach(b => b.classList.remove('active'));
+
+      document.getElementById('page-' + pageId).classList.add('active');
+      event.target.classList.add('active');
+
+      // Update URL
+      history.pushState({page: pageId}, '', '#' + pageId);
+    }
+
+    // Handle back/forward navigation
+    window.onpopstate = function(event) {
+      if (event.state && event.state.page) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById('page-' + event.state.page).classList.add('active');
+      }
+    };
+
+    // Sidebar toggle
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('collapsed');
+    }
+
+    // Tree node interaction
+    document.querySelectorAll('.tree-node-header').forEach(header => {
+      header.addEventListener('click', function() {
+        // Toggle expand
+        const expand = this.querySelector('.tree-expand');
+        if (expand && expand.style.visibility !== 'hidden') {
+          expand.classList.toggle('expanded');
+        }
+
+        // Update selection
+        document.querySelectorAll('.tree-node-header').forEach(h => h.classList.remove('selected'));
+        this.classList.add('selected');
+      });
+    });
+
+    // Timeline bar interaction
+    document.querySelectorAll('.lane-bar').forEach(bar => {
+      bar.addEventListener('click', function() {
+        document.querySelectorAll('.lane-bar').forEach(b => b.classList.remove('selected'));
+        this.classList.add('selected');
+
+        // Also highlight corresponding tree node
+        document.querySelectorAll('.tree-node-header').forEach(h => h.classList.remove('selected'));
+        document.querySelector('.tree-node-header').classList.add('selected');
+      });
+    });
+
+    // Section collapse
+    document.querySelectorAll('.detail-section-header').forEach(header => {
+      header.addEventListener('click', function() {
+        this.classList.toggle('collapsed');
+      });
+    });
+
+    // Filter chips
+    document.querySelectorAll('.filter-chip').forEach(chip => {
+      chip.addEventListener('click', function() {
+        if (this.textContent.trim() === 'All Sessions' ||
+            this.textContent.trim() === 'Today' ||
+            this.textContent.trim() === 'This Week') {
+          document.querySelectorAll('.filter-chip').forEach(c => {
+            if (c.textContent.trim() === 'All Sessions' ||
+                c.textContent.trim() === 'Today' ||
+                c.textContent.trim() === 'This Week') {
+              c.classList.remove('active');
+            }
+          });
+          this.classList.add('active');
+        } else {
+          this.classList.toggle('active');
+        }
+      });
+    });
+
+    // Initialize URL state
+    const hash = window.location.hash.slice(1);
+    if (hash === 'list') {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById('page-list').classList.add('active');
+      document.querySelectorAll('.page-nav-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.page-nav-btn')[1].classList.add('active');
+    }
+  </script>
+</body>
+</html>
