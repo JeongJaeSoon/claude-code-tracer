@@ -10,7 +10,7 @@ import type {
 } from "../types/timeline.ts";
 
 export interface SelectedItem {
-  type: "prompt" | "step" | "finalResponse";
+  type: "prompt" | "step" | "finalResponse" | "turn";
   turn?: Turn;
   step?: TurnStep;
   finalResponse?: AssistantMessage;

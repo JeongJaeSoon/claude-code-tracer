@@ -1,7 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
 import { TraceTree, type SelectedItem } from "../components/TraceTree.tsx";
 import { DetailPanel } from "../components/DetailPanel.tsx";
+import { HorizontalTimeline } from "../components/HorizontalTimeline.tsx";
 import type { TimelineData, Session } from "../types/timeline.ts";
+
+type ViewMode = "tree" | "timeline";
 
 interface SessionDetailProps {
   sessionId: string;
@@ -13,6 +16,7 @@ export function SessionDetail({ sessionId, onBack }: SessionDetailProps): React.
   const [timelineData, setTimelineData] = useState<TimelineData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("tree");
 
   useEffect(() => {
     fetchData();
@@ -153,26 +157,72 @@ export function SessionDetail({ sessionId, onBack }: SessionDetailProps): React.
         )}
       </div>
 
-      {/* Content Area - Two Panel Layout */}
-      <div className="content-area">
-        {/* Left: Trace Tree */}
-        <div className="trace-panel">
-          {timelineData ? (
-            <TraceTree
-              data={timelineData}
-              maxDuration={maxDuration}
-              onSelect={setSelectedItem}
-              selectedItem={selectedItem}
-            />
-          ) : (
-            <div className="loading-panel">Loading trace...</div>
-          )}
-        </div>
+      {/* View Mode Tabs */}
+      <div className="view-tabs">
+        <button
+          className={`view-tab ${viewMode === "tree" ? "active" : ""}`}
+          onClick={() => setViewMode("tree")}
+        >
+          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+          </svg>
+          Tree View
+        </button>
+        <button
+          className={`view-tab ${viewMode === "timeline" ? "active" : ""}`}
+          onClick={() => setViewMode("timeline")}
+        >
+          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+          Timeline
+        </button>
+      </div>
 
-        {/* Right: Detail Panel */}
-        <div className="detail-panel-wrapper">
-          <DetailPanel selectedItem={selectedItem} />
-        </div>
+      {/* Content Area */}
+      <div className="content-area">
+        {viewMode === "tree" ? (
+          <>
+            {/* Left: Trace Tree */}
+            <div className="trace-panel">
+              {timelineData ? (
+                <TraceTree
+                  data={timelineData}
+                  maxDuration={maxDuration}
+                  onSelect={setSelectedItem}
+                  selectedItem={selectedItem}
+                />
+              ) : (
+                <div className="loading-panel">Loading trace...</div>
+              )}
+            </div>
+
+            {/* Right: Detail Panel */}
+            <div className="detail-panel-wrapper">
+              <DetailPanel selectedItem={selectedItem} />
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Horizontal Timeline View */}
+            <div className="timeline-panel">
+              {timelineData ? (
+                <HorizontalTimeline
+                  data={timelineData}
+                  onSelect={setSelectedItem}
+                  selectedItem={selectedItem}
+                />
+              ) : (
+                <div className="loading-panel">Loading timeline...</div>
+              )}
+            </div>
+
+            {/* Detail Panel for Timeline View */}
+            <div className="detail-panel-wrapper timeline-detail">
+              <DetailPanel selectedItem={selectedItem} />
+            </div>
+          </>
+        )}
       </div>
 
       <style>{`
@@ -338,6 +388,47 @@ export function SessionDetail({ sessionId, onBack }: SessionDetailProps): React.
           letter-spacing: 0.05em;
         }
 
+        /* View Tabs */
+        .view-tabs {
+          display: flex;
+          gap: var(--space-xs);
+          padding: var(--space-sm) var(--space-lg);
+          background: var(--bg-secondary);
+          border-bottom: 1px solid var(--border-subtle);
+          flex-shrink: 0;
+        }
+
+        .view-tab {
+          display: inline-flex;
+          align-items: center;
+          gap: var(--space-xs);
+          padding: var(--space-sm) var(--space-md);
+          background: transparent;
+          border: 1px solid transparent;
+          border-radius: var(--radius-sm);
+          font-size: 13px;
+          font-weight: 500;
+          color: var(--text-secondary);
+          cursor: pointer;
+          transition: all 0.15s;
+          font-family: var(--font-sans);
+        }
+
+        .view-tab:hover {
+          background: var(--bg-hover);
+          color: var(--text-primary);
+        }
+
+        .view-tab.active {
+          background: var(--accent-primary);
+          color: white;
+          border-color: var(--accent-primary);
+        }
+
+        .view-tab svg {
+          flex-shrink: 0;
+        }
+
         /* Content Area */
         .content-area {
           flex: 1;
@@ -352,10 +443,22 @@ export function SessionDetail({ sessionId, onBack }: SessionDetailProps): React.
           overflow: hidden;
         }
 
+        .timeline-panel {
+          width: 60%;
+          min-width: 500px;
+          overflow: hidden;
+          border-right: 1px solid var(--border-subtle);
+        }
+
         .detail-panel-wrapper {
           flex: 1;
           overflow: hidden;
           min-width: 400px;
+        }
+
+        .detail-panel-wrapper.timeline-detail {
+          width: 40%;
+          min-width: 350px;
         }
 
         .loading-panel {

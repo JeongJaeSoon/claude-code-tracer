@@ -1,4 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { FilterBar, getDefaultFilters } from "../components/FilterBar";
+import type { FilterState } from "../components/FilterBar";
 
 interface ProjectStats {
   projectName: string;
@@ -44,15 +46,25 @@ export function ProjectList({ onSelectSession }: ProjectListProps) {
   const [expandedProject, setExpandedProject] = useState<string | null>(null);
   const [projectSessions, setProjectSessions] = useState<Map<string, Session[]>>(new Map());
   const [loadingSessions, setLoadingSessions] = useState<string | null>(null);
+  const [filters, setFilters] = useState<FilterState>(getDefaultFilters());
 
-  useEffect(() => {
-    fetchData();
+  // Build query string from filters
+  const buildQueryString = useCallback((f: FilterState): string => {
+    const params = new URLSearchParams();
+    if (f.search) params.set("search", f.search);
+    if (f.dateRange !== "all") params.set("dateRange", f.dateRange);
+    return params.toString();
   }, []);
 
-  async function fetchData() {
+  // Fetch projects with filters
+  const fetchData = useCallback(async () => {
+    setLoading(true);
     try {
+      const queryString = buildQueryString(filters);
+      const projectsUrl = queryString ? `/api/projects?${queryString}` : "/api/projects";
+
       const [projectsRes, statsRes] = await Promise.all([
-        fetch("/api/projects"),
+        fetch(projectsUrl),
         fetch("/api/projects/stats"),
       ]);
 
@@ -66,7 +78,20 @@ export function ProjectList({ onSelectSession }: ProjectListProps) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [filters, buildQueryString]);
+
+  // Refetch when filters change
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Handle filter changes
+  const handleFilterChange = useCallback((newFilters: FilterState) => {
+    setFilters(newFilters);
+    // Clear expanded project when filters change
+    setExpandedProject(null);
+    setProjectSessions(new Map());
+  }, []);
 
   async function fetchProjectSessions(projectName: string) {
     if (projectSessions.has(projectName)) return;
@@ -136,20 +161,22 @@ export function ProjectList({ onSelectSession }: ProjectListProps) {
   return (
     <>
       <header className="main-header">
-        <div>
-          <h1 className="page-title">Projects</h1>
-          <p className="page-subtitle">
-            {stats ? `${stats.totalProjects} projects, ${stats.totalSessions} sessions` : "Loading..."}
-          </p>
-        </div>
-        <div className="header-actions">
-          <div className="search-box">
-            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-            </svg>
-            <input type="text" placeholder="Search projects..." />
-            <span className="search-kbd">⌘K</span>
+        <div className="header-left">
+          <div>
+            <h1 className="page-title">Projects</h1>
+            <p className="page-subtitle">
+              {stats ? `${stats.totalProjects} projects, ${stats.totalSessions} sessions` : "Loading..."}
+            </p>
           </div>
+        </div>
+        <div className="header-center">
+          <FilterBar
+            filters={filters}
+            onFilterChange={handleFilterChange}
+            placeholder="Search projects..."
+          />
+        </div>
+        <div className="header-right">
           <button className="btn btn-primary" onClick={fetchData}>
             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
@@ -289,6 +316,22 @@ export function ProjectList({ onSelectSession }: ProjectListProps) {
           display: flex;
           align-items: center;
           justify-content: space-between;
+          gap: var(--space-lg);
+          flex-shrink: 0;
+        }
+
+        .header-left {
+          flex-shrink: 0;
+        }
+
+        .header-center {
+          flex: 1;
+          display: flex;
+          justify-content: center;
+          max-width: 600px;
+        }
+
+        .header-right {
           flex-shrink: 0;
         }
 
@@ -302,45 +345,6 @@ export function ProjectList({ onSelectSession }: ProjectListProps) {
           font-size: 13px;
           color: var(--text-tertiary);
           margin-top: 2px;
-        }
-
-        .header-actions {
-          display: flex;
-          align-items: center;
-          gap: var(--space-sm);
-        }
-
-        .search-box {
-          display: flex;
-          align-items: center;
-          gap: var(--space-sm);
-          padding: var(--space-sm) var(--space-md);
-          background: var(--bg-tertiary);
-          border: 1px solid var(--border-subtle);
-          border-radius: var(--radius-md);
-          min-width: 240px;
-        }
-
-        .search-box input {
-          flex: 1;
-          border: none;
-          background: transparent;
-          color: var(--text-primary);
-          font-size: 13px;
-          outline: none;
-        }
-
-        .search-box input::placeholder {
-          color: var(--text-muted);
-        }
-
-        .search-kbd {
-          font-family: var(--font-mono);
-          font-size: 10px;
-          color: var(--text-muted);
-          background: var(--bg-hover);
-          padding: 2px 6px;
-          border-radius: 4px;
         }
 
         .btn {
