@@ -227,7 +227,7 @@ app.get("/:sessionId", async (c) => {
           id: event.id,
           userPrompt: {
             id: event.id,
-            content: truncateContent(content, 100),
+            content: content,
             startTime: relativeTime,
             timestamp: event.timestamp,
           },
@@ -246,7 +246,7 @@ app.get("/:sessionId", async (c) => {
           currentTurn.steps.push({
             id: `${event.id}-thinking`,
             type: "thinking",
-            content: truncateContent(thinking, 200),
+            content: thinking,
             timestamp: event.timestamp,
             startTime: relativeTime,
           });
@@ -257,7 +257,7 @@ app.get("/:sessionId", async (c) => {
           currentTurn.steps.push({
             id: event.id,
             type: "assistant_text",
-            content: truncateContent(content, 200),
+            content: content,
             timestamp: event.timestamp,
             startTime: relativeTime,
           });
@@ -265,7 +265,7 @@ app.get("/:sessionId", async (c) => {
           // Update final response (will be overwritten by later responses)
           currentTurn.finalResponse = {
             id: event.id,
-            content: truncateContent(content, 500),
+            content: content,
             timestamp: event.timestamp,
           };
         }

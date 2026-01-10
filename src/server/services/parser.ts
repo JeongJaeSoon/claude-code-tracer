@@ -134,18 +134,16 @@ export async function parseJSONL(content: string): Promise<ParseResult> {
           content = msg.message.content
             .filter((b) => b.type === "text")
             .map((b) => (b as { type: "text"; text?: string }).text || "")
-            .join("\n")
-            .slice(0, 500);
+            .join("\n");
 
           // Extract thinking content
           thinking = msg.message.content
             .filter((b) => b.type === "thinking")
             .map((b) => (b as { type: "thinking"; thinking?: string }).thinking || "")
-            .join("\n")
-            .slice(0, 500);
+            .join("\n");
         }
       } else {
-        content = String(msg.message?.content || "").slice(0, 500);
+        content = String(msg.message?.content || "");
       }
 
       // Skip tool_result-only messages - they're not real user prompts
@@ -182,12 +180,12 @@ export async function parseJSONL(content: string): Promise<ParseResult> {
         if (block.type === "tool_result" && block.tool_use_id) {
           const toolUse = toolUseMap.get(block.tool_use_id);
           if (toolUse) {
-            // Extract tool output content (truncated for storage)
+            // Extract tool output content
             let toolOutput = "";
             if (typeof block.content === "string") {
-              toolOutput = block.content.slice(0, 500);
+              toolOutput = block.content;
             } else if (Array.isArray(block.content)) {
-              toolOutput = JSON.stringify(block.content).slice(0, 500);
+              toolOutput = JSON.stringify(block.content);
             }
 
             toolCallsData.push({
