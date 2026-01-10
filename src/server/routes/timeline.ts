@@ -99,18 +99,19 @@ interface TimelineEvent {
 
 // GET /api/timeline/:sessionId - Get timeline data for visualization
 app.get("/:sessionId", async (c) => {
-  const sessionId = c.req.param("sessionId");
+  try {
+    const sessionId = c.req.param("sessionId");
 
-  // Fetch session
-  const sessionResult = await db
-    .select()
-    .from(sessions)
-    .where(eq(sessions.id, sessionId))
-    .limit(1);
+    // Fetch session
+    const sessionResult = await db
+      .select()
+      .from(sessions)
+      .where(eq(sessions.id, sessionId))
+      .limit(1);
 
-  if (sessionResult.length === 0) {
-    return c.json({ error: "Session not found" }, 404);
-  }
+    if (sessionResult.length === 0) {
+      return c.json({ error: "Session not found" }, 404);
+    }
 
   const session = sessionResult[0]!;
 
@@ -169,7 +170,7 @@ app.get("/:sessionId", async (c) => {
   laneMap.set("main", {
     id: "main",
     name: "Main Agent",
-    color: LANE_COLORS.main,
+    color: LANE_COLORS.main || "#8b5cf6",
     turns: [],
   });
 
@@ -193,7 +194,7 @@ app.get("/:sessionId", async (c) => {
       laneMap.set(laneId, {
         id: laneId,
         name: laneName,
-        color: LANE_COLORS.subagent,
+        color: LANE_COLORS.subagent || "#0891b2",
         turns: [],
       });
     }
@@ -319,18 +320,22 @@ app.get("/:sessionId", async (c) => {
     });
   lanes.push(...subLanes);
 
-  const timelineData: TimelineData = {
-    session: {
-      id: session.id,
-      projectName: session.projectName,
-      startedAt: session.startedAt,
-      endedAt: session.endedAt,
-      totalDurationMs: session.totalDurationMs,
-    },
-    lanes,
-  };
+    const timelineData: TimelineData = {
+      session: {
+        id: session.id,
+        projectName: session.projectName,
+        startedAt: session.startedAt,
+        endedAt: session.endedAt,
+        totalDurationMs: session.totalDurationMs,
+      },
+      lanes,
+    };
 
-  return c.json(timelineData);
+    return c.json(timelineData);
+  } catch (error) {
+    console.error("Timeline fetch error:", error);
+    return c.json({ error: String(error) }, 500);
+  }
 });
 
 // GET /api/timeline/:sessionId/colors - Get tool colors mapping

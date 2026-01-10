@@ -16,28 +16,33 @@ export const flamegraphRoutes = new Hono();
 
 // GET /api/flamegraph/:sessionId - Get flamegraph data for a session
 flamegraphRoutes.get("/:sessionId", async (c) => {
-  const sessionId = c.req.param("sessionId");
+  try {
+    const sessionId = c.req.param("sessionId");
 
-  const session = await db
-    .select()
-    .from(sessions)
-    .where(eq(sessions.id, sessionId))
-    .limit(1);
+    const session = await db
+      .select()
+      .from(sessions)
+      .where(eq(sessions.id, sessionId))
+      .limit(1);
 
-  if (session.length === 0) {
-    return c.json({ error: "Session not found" }, 404);
+    if (session.length === 0) {
+      return c.json({ error: "Session not found" }, 404);
+    }
+
+    const tools = await db
+      .select()
+      .from(toolCalls)
+      .where(eq(toolCalls.sessionId, sessionId))
+      .orderBy(toolCalls.startTime);
+
+    // Build flamegraph structure
+    const flameData = buildFlameGraph(session[0]!, tools);
+
+    return c.json(flameData);
+  } catch (error) {
+    console.error("Flamegraph fetch error:", error);
+    return c.json({ error: String(error) }, 500);
   }
-
-  const tools = await db
-    .select()
-    .from(toolCalls)
-    .where(eq(toolCalls.sessionId, sessionId))
-    .orderBy(toolCalls.startTime);
-
-  // Build flamegraph structure
-  const flameData = buildFlameGraph(session[0]!, tools);
-
-  return c.json(flameData);
 });
 
 function buildFlameGraph(

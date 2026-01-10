@@ -1,9 +1,14 @@
 import { Hono } from "hono";
+import path from "node:path";
 import { db } from "../db/client.ts";
 import { sessions, toolCalls, messages } from "../db/schema.ts";
 import { parseJSONL } from "../services/parser.ts";
 
 export const ingestRoutes = new Hono();
+
+// Allowed base path for file access (local-only endpoint)
+const ALLOWED_BASE_PATH = process.env.CLAUDE_PROJECTS_DIR
+  || `${process.env.HOME}/.claude`;
 
 // POST /api/ingest - Receive JSONL data from Stop hook
 ingestRoutes.post("/", async (c) => {
@@ -58,6 +63,7 @@ ingestRoutes.post("/", async (c) => {
 });
 
 // POST /api/ingest/file - Receive file path and read it (includes sub-agents)
+// Note: This endpoint is for local use only. Path must be within ~/.claude
 ingestRoutes.post("/file", async (c) => {
   try {
     const { path: filePath } = await c.req.json<{ path: string }>();
@@ -66,7 +72,15 @@ ingestRoutes.post("/file", async (c) => {
       return c.json({ error: "path is required" }, 400);
     }
 
-    const file = Bun.file(filePath);
+    // Path traversal prevention: resolve to absolute path and check prefix
+    const resolvedPath = path.resolve(filePath);
+    if (!resolvedPath.startsWith(ALLOWED_BASE_PATH)) {
+      return c.json({
+        error: `Access denied: path must be within ${ALLOWED_BASE_PATH} directory`
+      }, 403);
+    }
+
+    const file = Bun.file(resolvedPath);
     if (!await file.exists()) {
       return c.json({ error: "File not found" }, 404);
     }
@@ -81,7 +95,7 @@ ingestRoutes.post("/file", async (c) => {
 
     // Check for sub-agents directory
     // Path: {sessionId}.jsonl -> {sessionId}/subagents/
-    const sessionDir = filePath.replace(".jsonl", "");
+    const sessionDir = resolvedPath.replace(".jsonl", "");
     const subagentsDir = `${sessionDir}/subagents`;
 
     let subAgentCount = 0;
