@@ -5,7 +5,8 @@ import { serveStatic } from "hono/bun";
 
 import { ingestRoutes } from "./routes/ingest.ts";
 import { sessionsRoutes } from "./routes/sessions.ts";
-import { flamegraphRoutes } from "./routes/flamegraph.ts";
+import { projectsRoutes } from "./routes/projects.ts";
+import { timelineRoutes } from "./routes/timeline.ts";
 
 const app = new Hono();
 
@@ -19,7 +20,8 @@ app.use("*", cors({
 // API Routes
 app.route("/api/ingest", ingestRoutes);
 app.route("/api/sessions", sessionsRoutes);
-app.route("/api/flamegraph", flamegraphRoutes);
+app.route("/api/projects", projectsRoutes);
+app.route("/api/timeline", timelineRoutes);
 
 // Health check
 app.get("/api/health", (c) => c.json({ status: "ok", timestamp: new Date().toISOString() }));
