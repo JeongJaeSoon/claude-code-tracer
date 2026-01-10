@@ -54,6 +54,12 @@ bun run dev:client
 
 프론트엔드 변경 후 Claude in Chrome 을 사용하여 UI 테스트
 
+### Agent 활용 워크플로우
+
+- **시각적 구현**: `frontend-design` - UI/UX 검토 및 프론트엔드 구현
+- **코드 정리**: `code-simplifier` - 구현 후 코드 리팩토링 및 정리
+- **기능 개발**: `feature-dev` + `ralph-loop` - 기능 구현 시 활용
+
 
 ## References
 
