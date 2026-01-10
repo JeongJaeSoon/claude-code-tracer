@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS tool_calls (
   agent_id TEXT,
   tool_name TEXT NOT NULL,
   tool_input TEXT,
+  tool_output TEXT,
   duration_ms INTEGER,
   start_time REAL NOT NULL,
   is_error INTEGER DEFAULT 0,
@@ -65,6 +66,7 @@ CREATE TABLE IF NOT EXISTS messages (
   agent_id TEXT,
   is_sidechain INTEGER DEFAULT 0,
   content TEXT,
+  thinking TEXT,
   timestamp TEXT NOT NULL
 );
 
