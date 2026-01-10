@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
 import { TraceTree, type SelectedItem } from "../components/TraceTree.tsx";
 import { DetailPanel } from "../components/DetailPanel.tsx";
-import { HorizontalTimeline } from "../components/HorizontalTimeline.tsx";
+import { CompactTimeline } from "../components/CompactTimeline.tsx";
+import { CollapsibleSidebar } from "../components/CollapsibleSidebar.tsx";
+import { formatDuration, formatTokens, formatSessionId, copyToClipboard } from "../utils/format.ts";
 import type { TimelineData, Session } from "../types/timeline.ts";
-
-type ViewMode = "tree" | "timeline";
 
 interface SessionDetailProps {
   sessionId: string;
@@ -16,7 +16,8 @@ export function SessionDetail({ sessionId, onBack }: SessionDetailProps): React.
   const [timelineData, setTimelineData] = useState<TimelineData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>("tree");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [copiedId, setCopiedId] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -48,7 +49,6 @@ export function SessionDetail({ sessionId, onBack }: SessionDetailProps): React.
     let max = 0;
     for (const lane of timelineData.lanes) {
       for (const turn of lane.turns) {
-        // Sum tool durations per turn
         const turnToolDuration = turn.steps
           .filter(s => s.type === "tool")
           .reduce((sum, s) => sum + (s.toolDuration || 0), 0);
@@ -58,24 +58,19 @@ export function SessionDetail({ sessionId, onBack }: SessionDetailProps): React.
     return max || 1000;
   }, [timelineData]);
 
-  function formatDuration(ms: number | null): string {
-    if (!ms) return "-";
-    const seconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    if (minutes === 0) return `${remainingSeconds}s`;
-    return `${minutes}m ${remainingSeconds}s`;
-  }
-
-  function formatTokens(tokens: number): string {
-    if (tokens >= 1000000) return `${(tokens / 1000000).toFixed(1)}M`;
-    if (tokens >= 1000) return `${(tokens / 1000).toFixed(1)}K`;
-    return String(tokens);
+  // Handle ID copy
+  async function handleCopyId() {
+    const success = await copyToClipboard(sessionId);
+    if (success) {
+      setCopiedId(true);
+      setTimeout(() => setCopiedId(false), 2000);
+    }
   }
 
   if (loading) {
     return (
       <div className="loading-container">
+        <div className="loading-spinner" />
         <p>Loading session...</p>
       </div>
     );
@@ -91,150 +86,113 @@ export function SessionDetail({ sessionId, onBack }: SessionDetailProps): React.
   }
 
   return (
-    <div className="session-detail-container">
+    <div className="session-detail-v2">
       {/* Header */}
-      <header className="session-header">
+      <header className="session-header-v2">
         <div className="header-left">
-          <div className="breadcrumb">
-            <button className="breadcrumb-link" onClick={onBack}>Sessions</button>
-            <span className="breadcrumb-sep">/</span>
-            <span className="breadcrumb-project">{session.projectName}</span>
-            <span className="breadcrumb-sep">/</span>
-            <span className="breadcrumb-current">{session.id.slice(0, 18)}</span>
+          <div className="session-title">
+            <div className="session-icon">⚡</div>
+            <span className="session-name">{session.projectName}</span>
+          </div>
+          <button
+            className={`session-id-btn ${copiedId ? "copied" : ""}`}
+            onClick={handleCopyId}
+            title="Copy full session ID"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+            </svg>
+            {copiedId ? "Copied!" : formatSessionId(sessionId, "short")}
+          </button>
+          <div className="header-tabs">
+            <button className="header-tab active">Run</button>
+            <button className="header-tab">Feedback</button>
+            <button className="header-tab">Metadata</button>
           </div>
         </div>
-        <div className="header-actions">
+        <div className="header-right">
+          <div className="session-stats">
+            <div className="mini-stat">
+              <span className="mini-stat-icon duration">⏱</span>
+              <span className="mini-stat-value">{formatDuration(session.totalDurationMs)}</span>
+            </div>
+            <div className="mini-stat">
+              <span className="mini-stat-icon tokens">◈</span>
+              <span className="mini-stat-value">{formatTokens(session.inputTokens + session.outputTokens)}</span>
+            </div>
+            <div className="mini-stat">
+              <span className="mini-stat-icon tools">⚙</span>
+              <span className="mini-stat-value">{session.toolCallCount}</span>
+            </div>
+          </div>
           <button className="btn btn-ghost" onClick={() => fetchData()}>
-            <span>↻</span> Refresh
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
           </button>
           <button className="btn btn-ghost" onClick={onBack}>
-            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
             Back
           </button>
         </div>
       </header>
 
-      {/* Stats Bar */}
-      <div className="stats-bar">
-        <div className="stat-item">
-          <div className="stat-icon duration">⏱</div>
-          <div className="stat-content">
-            <div className="stat-value">{formatDuration(session.totalDurationMs)}</div>
-            <div className="stat-label">Duration</div>
-          </div>
-        </div>
-        <div className="stat-item">
-          <div className="stat-icon tokens">◈</div>
-          <div className="stat-content">
-            <div className="stat-value">{formatTokens(session.inputTokens + session.outputTokens)}</div>
-            <div className="stat-label">Tokens</div>
-          </div>
-        </div>
-        <div className="stat-item">
-          <div className="stat-icon tools">⚙</div>
-          <div className="stat-content">
-            <div className="stat-value">{session.toolCallCount}</div>
-            <div className="stat-label">Tools</div>
-          </div>
-        </div>
-        <div className="stat-item">
-          <div className="stat-icon agents">◉</div>
-          <div className="stat-content">
-            <div className="stat-value">{session.subAgentCount}</div>
-            <div className="stat-label">Sub-agents</div>
-          </div>
-        </div>
-        {session.model && (
-          <div className="stat-item">
-            <div className="stat-icon model">🤖</div>
-            <div className="stat-content">
-              <div className="stat-value model-name">{session.model}</div>
-              <div className="stat-label">Model</div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* View Mode Tabs */}
-      <div className="view-tabs">
-        <button
-          className={`view-tab ${viewMode === "tree" ? "active" : ""}`}
-          onClick={() => setViewMode("tree")}
+      {/* Main Content Area */}
+      <div className="content-wrapper">
+        {/* Collapsible Sidebar with Tree View */}
+        <CollapsibleSidebar
+          collapsed={sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+          title="TRACE"
         >
-          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-          </svg>
-          Tree View
-        </button>
-        <button
-          className={`view-tab ${viewMode === "timeline" ? "active" : ""}`}
-          onClick={() => setViewMode("timeline")}
-        >
-          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-          </svg>
-          Timeline
-        </button>
-      </div>
+          {timelineData ? (
+            <TraceTree
+              data={timelineData}
+              maxDuration={maxDuration}
+              onSelect={setSelectedItem}
+              selectedItem={selectedItem}
+            />
+          ) : (
+            <div className="loading-panel">Loading trace...</div>
+          )}
+        </CollapsibleSidebar>
 
-      {/* Content Area */}
-      <div className="content-area">
-        {viewMode === "tree" ? (
-          <>
-            {/* Left: Trace Tree */}
-            <div className="trace-panel">
-              {timelineData ? (
-                <TraceTree
-                  data={timelineData}
-                  maxDuration={maxDuration}
-                  onSelect={setSelectedItem}
-                  selectedItem={selectedItem}
-                />
-              ) : (
-                <div className="loading-panel">Loading trace...</div>
-              )}
-            </div>
+        {/* Main Area: Timeline + Detail */}
+        <main className="main-area">
+          {/* Compact Timeline Section */}
+          <section className="compact-timeline-section">
+            {timelineData ? (
+              <CompactTimeline
+                data={timelineData}
+                onSelect={setSelectedItem}
+                selectedItem={selectedItem}
+              />
+            ) : (
+              <div className="loading-panel">Loading timeline...</div>
+            )}
+          </section>
 
-            {/* Right: Detail Panel */}
-            <div className="detail-panel-wrapper">
-              <DetailPanel selectedItem={selectedItem} />
-            </div>
-          </>
-        ) : (
-          <>
-            {/* Horizontal Timeline View */}
-            <div className="timeline-panel">
-              {timelineData ? (
-                <HorizontalTimeline
-                  data={timelineData}
-                  onSelect={setSelectedItem}
-                  selectedItem={selectedItem}
-                />
-              ) : (
-                <div className="loading-panel">Loading timeline...</div>
-              )}
-            </div>
-
-            {/* Detail Panel for Timeline View */}
-            <div className="detail-panel-wrapper timeline-detail">
-              <DetailPanel selectedItem={selectedItem} />
-            </div>
-          </>
-        )}
+          {/* Detail Panel (always visible) */}
+          <section className="detail-section">
+            <DetailPanel selectedItem={selectedItem} />
+          </section>
+        </main>
       </div>
 
       <style>{`
-        .session-detail-container {
+        .session-detail-v2 {
           display: flex;
           flex-direction: column;
-          height: 100%;
+          height: 100vh;
+          width: 100%;
           overflow: hidden;
         }
 
         /* Header */
-        .session-header {
+        .session-header-v2 {
           display: flex;
           align-items: center;
           justify-content: space-between;
@@ -242,54 +200,140 @@ export function SessionDetail({ sessionId, onBack }: SessionDetailProps): React.
           border-bottom: 1px solid var(--border-subtle);
           background: var(--bg-secondary);
           flex-shrink: 0;
+          gap: var(--space-lg);
         }
 
         .header-left {
           display: flex;
-          flex-direction: column;
-          gap: var(--space-xs);
+          align-items: center;
+          gap: var(--space-md);
         }
 
-        .breadcrumb {
+        .session-title {
           display: flex;
           align-items: center;
           gap: var(--space-sm);
-          font-size: 13px;
         }
 
-        .breadcrumb-link {
+        .session-icon {
+          width: 32px;
+          height: 32px;
+          background: linear-gradient(135deg, var(--accent-primary), #6366f1);
+          border-radius: var(--radius-sm);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 14px;
+        }
+
+        .session-name {
+          font-size: 16px;
+          font-weight: 600;
+          color: var(--text-primary);
+        }
+
+        .session-id-btn {
+          display: flex;
+          align-items: center;
+          gap: var(--space-xs);
+          padding: var(--space-xs) var(--space-sm);
+          background: var(--bg-tertiary);
+          border: 1px solid var(--border-subtle);
+          border-radius: var(--radius-sm);
           color: var(--text-muted);
-          background: none;
-          border: none;
+          font-family: var(--font-mono);
+          font-size: 11px;
           cursor: pointer;
-          padding: 0;
-          font-size: inherit;
-          transition: color 0.15s;
+          transition: all 0.15s ease;
         }
 
-        .breadcrumb-link:hover {
+        .session-id-btn:hover {
+          border-color: var(--accent-primary);
           color: var(--accent-primary);
         }
 
-        .breadcrumb-sep {
-          color: var(--text-muted);
-          opacity: 0.5;
+        .session-id-btn.copied {
+          background: var(--success);
+          border-color: var(--success);
+          color: white;
         }
 
-        .breadcrumb-project {
+        .header-tabs {
+          display: flex;
+          align-items: center;
+          gap: var(--space-xs);
+          margin-left: var(--space-md);
+          padding-left: var(--space-md);
+          border-left: 1px solid var(--border-subtle);
+        }
+
+        .header-tab {
+          padding: var(--space-sm) var(--space-md);
+          background: transparent;
+          border: none;
           color: var(--text-secondary);
+          font-family: var(--font-sans);
+          font-size: 13px;
+          font-weight: 500;
+          cursor: pointer;
+          border-radius: var(--radius-sm);
+          transition: all 0.15s ease;
+          position: relative;
         }
 
-        .breadcrumb-current {
+        .header-tab:hover {
           color: var(--text-primary);
-          font-family: var(--font-mono);
-          font-weight: 600;
+          background: var(--bg-hover);
         }
 
-        .header-actions {
+        .header-tab.active {
+          color: var(--text-primary);
+        }
+
+        .header-tab.active::after {
+          content: '';
+          position: absolute;
+          bottom: -2px;
+          left: var(--space-md);
+          right: var(--space-md);
+          height: 2px;
+          background: var(--accent-primary);
+          border-radius: 2px;
+        }
+
+        .header-right {
           display: flex;
           align-items: center;
           gap: var(--space-sm);
+        }
+
+        .session-stats {
+          display: flex;
+          align-items: center;
+          gap: var(--space-md);
+          padding-right: var(--space-md);
+          border-right: 1px solid var(--border-subtle);
+        }
+
+        .mini-stat {
+          display: flex;
+          align-items: center;
+          gap: var(--space-xs);
+        }
+
+        .mini-stat-icon {
+          font-size: 12px;
+        }
+
+        .mini-stat-icon.duration { color: #10b981; }
+        .mini-stat-icon.tokens { color: #3b82f6; }
+        .mini-stat-icon.tools { color: #f97316; }
+
+        .mini-stat-value {
+          font-family: var(--font-mono);
+          font-size: 12px;
+          font-weight: 500;
+          color: var(--text-secondary);
         }
 
         .btn {
@@ -302,7 +346,7 @@ export function SessionDetail({ sessionId, onBack }: SessionDetailProps): React.
           font-weight: 500;
           border: none;
           cursor: pointer;
-          transition: all 0.15s;
+          transition: all 0.15s ease;
           font-family: var(--font-sans);
         }
 
@@ -323,142 +367,56 @@ export function SessionDetail({ sessionId, onBack }: SessionDetailProps): React.
           border-color: var(--border-default);
         }
 
-        /* Stats Bar */
-        .stats-bar {
+        /* Content Wrapper */
+        .content-wrapper {
+          flex: 1;
           display: flex;
-          gap: var(--space-md);
-          padding: var(--space-md) var(--space-lg);
-          background: var(--bg-elevated);
-          border-bottom: 1px solid var(--border-subtle);
-          flex-shrink: 0;
-          overflow-x: auto;
+          overflow: hidden;
         }
 
-        .stat-item {
-          display: flex;
-          align-items: center;
-          gap: var(--space-sm);
-          padding: var(--space-sm) var(--space-md);
-          background: var(--bg-secondary);
-          border-radius: var(--radius-md);
-          border: 1px solid var(--border-subtle);
-          flex-shrink: 0;
-        }
-
-        .stat-icon {
-          width: 32px;
-          height: 32px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: var(--radius-sm);
-          font-size: 14px;
-        }
-
-        .stat-icon.duration { background: rgba(16, 185, 129, 0.15); color: #10b981; }
-        .stat-icon.tokens { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
-        .stat-icon.tools { background: rgba(249, 115, 22, 0.15); color: #f97316; }
-        .stat-icon.agents { background: rgba(168, 85, 247, 0.15); color: #a855f7; }
-        .stat-icon.model { background: rgba(236, 72, 153, 0.15); color: #ec4899; }
-
-        .stat-content {
+        /* Main Area */
+        .main-area {
+          flex: 1;
           display: flex;
           flex-direction: column;
-        }
-
-        .stat-value {
-          font-family: var(--font-mono);
-          font-weight: 600;
-          font-size: 15px;
-          color: var(--text-primary);
-        }
-
-        .stat-value.model-name {
-          font-size: 12px;
-          max-width: 120px;
-          white-space: nowrap;
           overflow: hidden;
-          text-overflow: ellipsis;
+          min-width: 0;
         }
 
-        .stat-label {
-          font-size: 11px;
-          color: var(--text-muted);
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-        }
-
-        /* View Tabs */
-        .view-tabs {
-          display: flex;
-          gap: var(--space-xs);
-          padding: var(--space-sm) var(--space-lg);
-          background: var(--bg-secondary);
+        /* Compact Timeline Section */
+        .compact-timeline-section {
           border-bottom: 1px solid var(--border-subtle);
           flex-shrink: 0;
         }
 
-        .view-tab {
-          display: inline-flex;
-          align-items: center;
-          gap: var(--space-xs);
-          padding: var(--space-sm) var(--space-md);
-          background: transparent;
-          border: 1px solid transparent;
-          border-radius: var(--radius-sm);
-          font-size: 13px;
-          font-weight: 500;
-          color: var(--text-secondary);
-          cursor: pointer;
-          transition: all 0.15s;
-          font-family: var(--font-sans);
-        }
-
-        .view-tab:hover {
-          background: var(--bg-hover);
-          color: var(--text-primary);
-        }
-
-        .view-tab.active {
-          background: var(--accent-primary);
-          color: white;
-          border-color: var(--accent-primary);
-        }
-
-        .view-tab svg {
-          flex-shrink: 0;
-        }
-
-        /* Content Area */
-        .content-area {
+        /* Detail Section */
+        .detail-section {
           flex: 1;
+          overflow: hidden;
+        }
+
+        /* Loading & Error States */
+        .loading-container, .error-container {
           display: flex;
-          overflow: hidden;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          height: 100vh;
+          gap: var(--space-md);
+          color: var(--text-tertiary);
         }
 
-        .trace-panel {
-          width: 50%;
-          min-width: 400px;
-          max-width: 600px;
-          overflow: hidden;
+        .loading-spinner {
+          width: 32px;
+          height: 32px;
+          border: 3px solid var(--border-subtle);
+          border-top-color: var(--accent-primary);
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
         }
 
-        .timeline-panel {
-          width: 60%;
-          min-width: 500px;
-          overflow: hidden;
-          border-right: 1px solid var(--border-subtle);
-        }
-
-        .detail-panel-wrapper {
-          flex: 1;
-          overflow: hidden;
-          min-width: 400px;
-        }
-
-        .detail-panel-wrapper.timeline-detail {
-          width: 40%;
-          min-width: 350px;
+        @keyframes spin {
+          to { transform: rotate(360deg); }
         }
 
         .loading-panel {
@@ -467,16 +425,7 @@ export function SessionDetail({ sessionId, onBack }: SessionDetailProps): React.
           justify-content: center;
           height: 100%;
           color: var(--text-muted);
-        }
-
-        .loading-container, .error-container {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          height: 100%;
-          gap: var(--space-md);
-          color: var(--text-tertiary);
+          font-size: 13px;
         }
       `}</style>
     </div>

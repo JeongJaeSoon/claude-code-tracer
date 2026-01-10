@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { getToolIcon, getToolColor } from "../constants/tools.ts";
 import type {
   Turn,
@@ -25,10 +25,60 @@ interface TraceTreeProps {
 }
 
 export function TraceTree({ data, maxDuration, onSelect, selectedItem }: TraceTreeProps): React.ReactElement {
+  const contentRef = useRef<HTMLDivElement>(null);
   const [expandedTurns, setExpandedTurns] = useState<Set<string>>(new Set(
     // Expand all turns by default
     data.lanes.flatMap(lane => lane.turns.map(t => t.id))
   ));
+
+  // Scroll to selected item when selection changes
+  // Position at top with slight margin (~20px from top of visible area)
+  useEffect(() => {
+    const turnId = selectedItem?.turn?.id;
+    const stepId = selectedItem?.step?.id;
+    const finalResponseId = selectedItem?.finalResponse?.id;
+
+    if (!contentRef.current) return;
+
+    let targetElement: HTMLElement | null = null;
+
+    // Find the specific element to scroll to
+    if (stepId) {
+      // Look for step element within the turn
+      targetElement = contentRef.current.querySelector(
+        `[data-turn-id="${turnId}"] .step-item`
+      ) as HTMLElement;
+      // Try to find the actual selected step
+      const allSteps = contentRef.current.querySelectorAll(`[data-turn-id="${turnId}"] .step-item`);
+      allSteps.forEach((el) => {
+        if (el.classList.contains('selected')) {
+          targetElement = el as HTMLElement;
+        }
+      });
+    } else if (finalResponseId) {
+      targetElement = contentRef.current.querySelector(
+        `[data-turn-id="${turnId}"] .final-response`
+      ) as HTMLElement;
+    } else if (turnId) {
+      targetElement = contentRef.current.querySelector(
+        `[data-turn-id="${turnId}"]`
+      ) as HTMLElement;
+    }
+
+    if (targetElement) {
+      const container = contentRef.current;
+      const containerRect = container.getBoundingClientRect();
+      const targetRect = targetElement.getBoundingClientRect();
+
+      // Calculate target scroll position (element at top with 20px margin)
+      const targetScrollTop = container.scrollTop + (targetRect.top - containerRect.top) - 20;
+
+      container.scrollTo({
+        top: Math.max(0, targetScrollTop),
+        behavior: "smooth",
+      });
+    }
+  }, [selectedItem?.turn?.id, selectedItem?.step?.id, selectedItem?.finalResponse?.id]);
 
   // Get main lane and sub-agent lanes
   const { mainLane, subAgentLanes } = useMemo(() => {
@@ -171,7 +221,7 @@ export function TraceTree({ data, maxDuration, onSelect, selectedItem }: TraceTr
     const toolSteps = turn.steps.filter(s => s.type === "tool");
 
     return (
-      <div key={turn.id} className="turn-section">
+      <div key={turn.id} data-turn-id={turn.id} className="turn-section">
         {/* Turn Header (User Prompt) */}
         <div
           className={`turn-header ${isItemSelected("prompt", turn.id) ? "selected" : ""}`}
@@ -239,7 +289,7 @@ export function TraceTree({ data, maxDuration, onSelect, selectedItem }: TraceTr
         </div>
       </div>
 
-      <div className="trace-tree-content">
+      <div className="trace-tree-content" ref={contentRef}>
         {!mainLane || mainLane.turns.length === 0 ? (
           <div className="empty-state">
             <div className="empty-icon">📋</div>

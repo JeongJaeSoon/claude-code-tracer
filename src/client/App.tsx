@@ -1,7 +1,6 @@
 import { useState, useEffect, createContext, useContext } from "react";
-import { ProjectList } from "./pages/ProjectList.tsx";
+import { SessionList } from "./pages/SessionList.tsx";
 import { SessionDetail } from "./pages/SessionDetail.tsx";
-import { Sidebar } from "./components/Sidebar.tsx";
 
 // Theme context
 type Theme = "dark" | "light";
@@ -20,45 +19,70 @@ export function useTheme() {
   return useContext(ThemeContext);
 }
 
-// Router state
-type Page = "projects" | "detail";
+// Router state - hash-based routing
+type Page = "sessions" | "session";
 
 interface RouterState {
   page: Page;
   sessionId?: string;
 }
 
+// Parse hash into route state
+function parseHash(hash: string): RouterState {
+  const path = hash.startsWith("#") ? hash.slice(1) : hash;
+
+  // #session/{id} -> session detail
+  if (path.startsWith("session/")) {
+    const sessionId = path.slice(8); // "session/".length = 8
+    if (sessionId) {
+      return { page: "session", sessionId };
+    }
+  }
+
+  // Default: sessions list
+  return { page: "sessions" };
+}
+
+// Global navigate function
+export function navigate(path: string) {
+  window.location.hash = path;
+}
+
 export function App() {
   const [theme, setTheme] = useState<Theme>("dark");
-  const [router, setRouter] = useState<RouterState>({ page: "projects" });
+  const [router, setRouter] = useState<RouterState>(() =>
+    parseHash(window.location.hash)
+  );
 
   // Apply theme to document
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
 
-  const navigate = (page: Page, sessionId?: string) => {
-    setRouter({ page, sessionId });
-  };
+  // Listen for hash changes (browser back/forward, direct navigation)
+  useEffect(() => {
+    const handleHashChange = () => {
+      setRouter(parseHash(window.location.hash));
+    };
+
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
 
   return (
     <ThemeContext.Provider value={{ theme, setTheme }}>
       <div className="app">
-        <Sidebar
-          currentPage={router.page}
-          onNavigate={navigate}
-        />
-        <main className="main">
-          {router.page === "projects" && (
-            <ProjectList onSelectSession={(id) => navigate("detail", id)} />
-          )}
-          {router.page === "detail" && router.sessionId && (
-            <SessionDetail
-              sessionId={router.sessionId}
-              onBack={() => navigate("projects")}
-            />
-          )}
-        </main>
+        {router.page === "sessions" && (
+          <SessionList
+            onSelectSession={(id) => navigate(`session/${id}`)}
+          />
+        )}
+        {router.page === "session" && router.sessionId && (
+          <SessionDetail
+            sessionId={router.sessionId}
+            onBack={() => navigate("sessions")}
+          />
+        )}
       </div>
 
       <style>{`
@@ -66,13 +90,7 @@ export function App() {
           display: flex;
           min-height: 100vh;
           width: 100vw;
-        }
-
-        .main {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          min-width: 0;
+          background: var(--bg-primary);
         }
       `}</style>
     </ThemeContext.Provider>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { formatDuration, formatTokens, formatDate, formatSessionId } from "../utils/format.ts";
 
 interface Session {
   id: string;
@@ -10,6 +11,7 @@ interface Session {
   outputTokens: number;
   toolCallCount: number;
   status: "running" | "completed" | "error";
+  toolTypes?: string[];
 }
 
 interface Stats {
@@ -19,6 +21,9 @@ interface Stats {
   avgDurationMs: number;
 }
 
+type DateFilter = "all" | "today" | "week";
+type ToolFilter = "Bash" | "Read" | "Edit" | "Task";
+
 interface SessionListProps {
   onSelectSession: (sessionId: string) => void;
 }
@@ -27,15 +32,26 @@ export function SessionList({ onSelectSession }: SessionListProps) {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [dateFilter, setDateFilter] = useState<DateFilter>("all");
+  const [toolFilters, setToolFilters] = useState<Set<ToolFilter>>(new Set());
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [dateFilter]);
 
   async function fetchData() {
     try {
+      const params = new URLSearchParams();
+      if (dateFilter !== "all") {
+        params.set("dateRange", dateFilter);
+      }
+      if (searchQuery) {
+        params.set("search", searchQuery);
+      }
+
       const [sessionsRes, statsRes] = await Promise.all([
-        fetch("/api/sessions"),
+        fetch(`/api/sessions?${params.toString()}`),
         fetch("/api/sessions/stats"),
       ]);
 
@@ -51,32 +67,25 @@ export function SessionList({ onSelectSession }: SessionListProps) {
     }
   }
 
-  function formatDuration(ms: number | null): string {
-    if (!ms) return "-";
-    const seconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}m ${remainingSeconds}s`;
+  function toggleToolFilter(tool: ToolFilter) {
+    const newFilters = new Set(toolFilters);
+    if (newFilters.has(tool)) {
+      newFilters.delete(tool);
+    } else {
+      newFilters.add(tool);
+    }
+    setToolFilters(newFilters);
   }
 
-  function formatTokens(tokens: number): string {
-    if (tokens >= 1000000) return `${(tokens / 1000000).toFixed(1)}M`;
-    if (tokens >= 1000) return `${(tokens / 1000).toFixed(1)}K`;
-    return String(tokens);
-  }
-
-  function formatDate(dateStr: string): string {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString("ko-KR", {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  }
+  // Filter sessions by tool types (client-side for now)
+  const filteredSessions = sessions.filter((session) => {
+    if (toolFilters.size === 0) return true;
+    // TODO: When toolTypes is available from API, use it
+    return true;
+  });
 
   return (
-    <>
+    <div className="session-list-page">
       <header className="main-header">
         <div>
           <h1 className="page-title">Sessions</h1>
@@ -89,7 +98,13 @@ export function SessionList({ onSelectSession }: SessionListProps) {
             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
             </svg>
-            <input type="text" placeholder="Search sessions..." />
+            <input
+              type="text"
+              placeholder="Search sessions..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && fetchData()}
+            />
             <span className="search-kbd">⌘K</span>
           </div>
           <button className="btn btn-primary" onClick={fetchData}>
@@ -124,6 +139,54 @@ export function SessionList({ onSelectSession }: SessionListProps) {
           </div>
         )}
 
+        {/* Filter Chips */}
+        <div className="filter-chips">
+          {/* Date filters */}
+          <button
+            className={`filter-chip ${dateFilter === "all" ? "active" : ""}`}
+            onClick={() => setDateFilter("all")}
+          >
+            All Sessions
+          </button>
+          <button
+            className={`filter-chip ${dateFilter === "today" ? "active" : ""}`}
+            onClick={() => setDateFilter("today")}
+          >
+            Today
+          </button>
+          <button
+            className={`filter-chip ${dateFilter === "week" ? "active" : ""}`}
+            onClick={() => setDateFilter("week")}
+          >
+            This Week
+          </button>
+
+          <div className="filter-divider" />
+
+          {/* Tool filters */}
+          <button
+            className={`filter-chip ${toolFilters.has("Bash") ? "active" : ""}`}
+            onClick={() => toggleToolFilter("Bash")}
+          >
+            <span className="chip-dot" style={{ background: "var(--tool-bash)" }} />
+            Bash
+          </button>
+          <button
+            className={`filter-chip ${toolFilters.has("Task") ? "active" : ""}`}
+            onClick={() => toggleToolFilter("Task")}
+          >
+            <span className="chip-dot" style={{ background: "var(--tool-task)" }} />
+            Task (Sub-agent)
+          </button>
+          <button
+            className={`filter-chip ${toolFilters.has("Edit") ? "active" : ""}`}
+            onClick={() => toggleToolFilter("Edit")}
+          >
+            <span className="chip-dot" style={{ background: "var(--tool-edit)" }} />
+            Edit
+          </button>
+        </div>
+
         {/* Sessions Table */}
         <div className="sessions-table">
           <div className="table-header">
@@ -137,13 +200,13 @@ export function SessionList({ onSelectSession }: SessionListProps) {
 
           {loading ? (
             <div className="loading-state">Loading sessions...</div>
-          ) : sessions.length === 0 ? (
+          ) : filteredSessions.length === 0 ? (
             <div className="empty-state">
               <p>No sessions yet</p>
               <p className="text-secondary">Sessions will appear here when Claude Code sends data via Stop hooks</p>
             </div>
           ) : (
-            sessions.map((session) => (
+            filteredSessions.map((session) => (
               <div
                 key={session.id}
                 className="table-row"
@@ -151,7 +214,7 @@ export function SessionList({ onSelectSession }: SessionListProps) {
               >
                 <div className="session-info">
                   <div className="session-project">{session.projectName}</div>
-                  <div className="session-id">{session.id.slice(0, 18)}</div>
+                  <div className="session-id">{formatSessionId(session.id, "short")}</div>
                 </div>
                 <div className="session-timestamp">{formatDate(session.startedAt)}</div>
                 <div className="session-duration">{formatDuration(session.totalDurationMs)}</div>
@@ -170,6 +233,14 @@ export function SessionList({ onSelectSession }: SessionListProps) {
       </div>
 
       <style>{`
+        .session-list-page {
+          display: flex;
+          flex-direction: column;
+          height: 100vh;
+          width: 100%;
+          background: var(--bg-primary);
+        }
+
         .main-header {
           padding: var(--space-lg) var(--space-xl);
           border-bottom: 1px solid var(--border-subtle);
@@ -426,7 +497,56 @@ export function SessionList({ onSelectSession }: SessionListProps) {
         .empty-state p {
           margin-bottom: var(--space-sm);
         }
+
+        /* Filter Chips */
+        .filter-chips {
+          display: flex;
+          align-items: center;
+          gap: var(--space-sm);
+          margin-bottom: var(--space-lg);
+          flex-wrap: wrap;
+        }
+
+        .filter-chip {
+          display: inline-flex;
+          align-items: center;
+          gap: var(--space-xs);
+          padding: var(--space-sm) var(--space-md);
+          background: var(--bg-tertiary);
+          border: 1px solid var(--border-subtle);
+          border-radius: 20px;
+          font-size: 13px;
+          font-weight: 500;
+          color: var(--text-secondary);
+          cursor: pointer;
+          transition: all 0.15s ease;
+          font-family: var(--font-sans);
+        }
+
+        .filter-chip:hover {
+          border-color: var(--border-default);
+          color: var(--text-primary);
+        }
+
+        .filter-chip.active {
+          background: var(--accent-primary);
+          border-color: var(--accent-primary);
+          color: white;
+        }
+
+        .chip-dot {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+        }
+
+        .filter-divider {
+          width: 1px;
+          height: 20px;
+          background: var(--border-subtle);
+          margin: 0 var(--space-xs);
+        }
       `}</style>
-    </>
+    </div>
   );
 }
