@@ -99,14 +99,19 @@ export function TraceTree({ data, maxDuration, onSelect, selectedItem }: TraceTr
     });
   }
 
-  function expandAll() {
-    setExpandedTurns(new Set(
-      data.lanes.flatMap(lane => lane.turns.map(t => t.id))
-    ));
-  }
+  const allTurnIds = useMemo(() =>
+    data.lanes.flatMap(lane => lane.turns.map(t => t.id)),
+    [data.lanes]
+  );
 
-  function collapseAll() {
-    setExpandedTurns(new Set());
+  const allExpanded = allTurnIds.length > 0 && allTurnIds.every(id => expandedTurns.has(id));
+
+  function toggleAllExpanded() {
+    if (allExpanded) {
+      setExpandedTurns(new Set());
+    } else {
+      setExpandedTurns(new Set(allTurnIds));
+    }
   }
 
   function formatDuration(ms: number): string {
@@ -225,12 +230,15 @@ export function TraceTree({ data, maxDuration, onSelect, selectedItem }: TraceTr
         {/* Turn Header (User Prompt) */}
         <div
           className={`turn-header ${isItemSelected("prompt", turn.id) ? "selected" : ""}`}
-          onClick={() => {
-            toggleTurn(turn.id);
-            onSelect?.({ type: "prompt", turn, lane });
-          }}
+          onClick={() => onSelect?.({ type: "prompt", turn, lane })}
         >
-          <div className={`turn-toggle ${isExpanded ? "expanded" : ""}`}>▶</div>
+          <div
+            className={`turn-toggle ${isExpanded ? "expanded" : ""}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleTurn(turn.id);
+            }}
+          >▶</div>
           <div className="turn-icon">👤</div>
           <div className="turn-content">
             <div className="turn-text">"{turn.userPrompt.content}"</div>
@@ -281,12 +289,16 @@ export function TraceTree({ data, maxDuration, onSelect, selectedItem }: TraceTr
 
   return (
     <div className="trace-tree-container">
+      {/* Header - matches Timeline style */}
       <div className="trace-tree-header">
         <span className="trace-tree-title">Trace Tree</span>
-        <div className="trace-tree-actions">
-          <button className="icon-btn" onClick={expandAll} title="Expand All">⊞</button>
-          <button className="icon-btn" onClick={collapseAll} title="Collapse All">⊟</button>
-        </div>
+        <button
+          className="expand-toggle-btn"
+          onClick={toggleAllExpanded}
+          title={allExpanded ? "Collapse All" : "Expand All"}
+        >
+          {allExpanded ? "⊟" : "⊞"}
+        </button>
       </div>
 
       <div className="trace-tree-content" ref={contentRef}>
@@ -331,13 +343,15 @@ export function TraceTree({ data, maxDuration, onSelect, selectedItem }: TraceTr
           border-right: 1px solid var(--border-subtle);
         }
 
+        /* Header - matches Timeline style */
         .trace-tree-header {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: var(--space-md) var(--space-lg);
+          padding: var(--space-sm) var(--space-md);
           border-bottom: 1px solid var(--border-subtle);
           background: var(--bg-secondary);
+          flex-shrink: 0;
         }
 
         .trace-tree-title {
@@ -348,9 +362,25 @@ export function TraceTree({ data, maxDuration, onSelect, selectedItem }: TraceTr
           letter-spacing: 0.05em;
         }
 
-        .trace-tree-actions {
+        .expand-toggle-btn {
+          width: 24px;
+          height: 24px;
           display: flex;
-          gap: var(--space-xs);
+          align-items: center;
+          justify-content: center;
+          background: transparent;
+          border: 1px solid var(--border-subtle);
+          border-radius: var(--radius-sm);
+          color: var(--text-muted);
+          cursor: pointer;
+          font-size: 14px;
+          transition: all 0.15s ease;
+        }
+
+        .expand-toggle-btn:hover {
+          background: var(--bg-hover);
+          color: var(--text-secondary);
+          border-color: var(--border-default);
         }
 
         .icon-btn {

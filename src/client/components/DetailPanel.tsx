@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { getToolIcon, getToolColor } from "../constants/tools.ts";
+import { SmartContentRenderer } from "./SmartContentRenderer.tsx";
 import type { SelectedItem } from "./TraceTree.tsx";
 
 interface DetailPanelProps {
@@ -10,29 +11,10 @@ type TabType = "run" | "input" | "output" | "metadata";
 
 export function DetailPanel({ selectedItem }: DetailPanelProps): React.ReactElement | null {
   const [activeTab, setActiveTab] = useState<TabType>("run");
-  const [showJson, setShowJson] = useState(false);
 
   function formatDuration(ms: number): string {
     if (ms < 1000) return `${ms}ms`;
     return `${(ms / 1000).toFixed(1)}s`;
-  }
-
-  function formatJson(input: string | null | undefined): string {
-    if (!input) return "null";
-    try {
-      return JSON.stringify(JSON.parse(input), null, 2);
-    } catch {
-      return input;
-    }
-  }
-
-  function getInputSummary(input: string | null | undefined): Record<string, unknown> | string {
-    if (!input) return "-";
-    try {
-      return JSON.parse(input);
-    } catch {
-      return input;
-    }
   }
 
   // Empty state
@@ -90,9 +72,7 @@ export function DetailPanel({ selectedItem }: DetailPanelProps): React.ReactElem
                   <span className="section-title">User Message</span>
                   <span className="section-badge human">Human</span>
                 </div>
-                <div className="section-content">
-                  <div className="message-content">{turn.userPrompt.content}</div>
-                </div>
+                <SmartContentRenderer content={turn.userPrompt.content} />
               </div>
 
               <div className="detail-section">
@@ -123,9 +103,7 @@ export function DetailPanel({ selectedItem }: DetailPanelProps): React.ReactElem
                     <span className="section-title">Final Response</span>
                     <span className="section-badge success">Complete</span>
                   </div>
-                  <div className="section-content final-response-content">
-                    <div className="message-content">{turn.finalResponse.content}</div>
-                  </div>
+                  <SmartContentRenderer content={turn.finalResponse.content} />
                 </div>
               )}
             </>
@@ -136,21 +114,20 @@ export function DetailPanel({ selectedItem }: DetailPanelProps): React.ReactElem
               <div className="section-header">
                 <span className="section-title">Metadata</span>
               </div>
-              <div className="section-content">
-                <div className="code-block">
-                  {JSON.stringify(
-                    {
-                      id: turn.id,
-                      startTime: `${(turn.startTime / 1000).toFixed(2)}s`,
-                      endTime: `${(turn.endTime / 1000).toFixed(2)}s`,
-                      toolCount: turn.toolCount,
-                      promptTimestamp: turn.userPrompt.timestamp,
-                    },
-                    null,
-                    2
-                  )}
-                </div>
-              </div>
+              <SmartContentRenderer
+                content={JSON.stringify(
+                  {
+                    id: turn.id,
+                    startTime: `${(turn.startTime / 1000).toFixed(2)}s`,
+                    endTime: `${(turn.endTime / 1000).toFixed(2)}s`,
+                    toolCount: turn.toolCount,
+                    promptTimestamp: turn.userPrompt.timestamp,
+                  },
+                  null,
+                  2
+                )}
+                forceType="json"
+              />
             </div>
           )}
         </div>
@@ -200,9 +177,7 @@ export function DetailPanel({ selectedItem }: DetailPanelProps): React.ReactElem
                   <span className="section-title">Thinking Content</span>
                   <span className="section-badge thinking-badge">Internal</span>
                 </div>
-                <div className="section-content thinking-content">
-                  <div className="message-content">{step.content}</div>
-                </div>
+                <SmartContentRenderer content={step.content} className="thinking-renderer" />
               </div>
             )}
 
@@ -211,20 +186,19 @@ export function DetailPanel({ selectedItem }: DetailPanelProps): React.ReactElem
                 <div className="section-header">
                   <span className="section-title">Metadata</span>
                 </div>
-                <div className="section-content">
-                  <div className="code-block">
-                    {JSON.stringify(
-                      {
-                        id: step.id,
-                        type: step.type,
-                        startTime: `${(step.startTime / 1000).toFixed(2)}s`,
-                        timestamp: step.timestamp,
-                      },
-                      null,
-                      2
-                    )}
-                  </div>
-                </div>
+                <SmartContentRenderer
+                  content={JSON.stringify(
+                    {
+                      id: step.id,
+                      type: step.type,
+                      startTime: `${(step.startTime / 1000).toFixed(2)}s`,
+                      timestamp: step.timestamp,
+                    },
+                    null,
+                    2
+                  )}
+                  forceType="json"
+                />
               </div>
             )}
           </div>
@@ -269,9 +243,7 @@ export function DetailPanel({ selectedItem }: DetailPanelProps): React.ReactElem
                   <span className="section-title">Response Content</span>
                   <span className="section-badge assistant-badge">Assistant</span>
                 </div>
-                <div className="section-content">
-                  <div className="message-content">{step.content}</div>
-                </div>
+                <SmartContentRenderer content={step.content} />
               </div>
             )}
 
@@ -280,20 +252,19 @@ export function DetailPanel({ selectedItem }: DetailPanelProps): React.ReactElem
                 <div className="section-header">
                   <span className="section-title">Metadata</span>
                 </div>
-                <div className="section-content">
-                  <div className="code-block">
-                    {JSON.stringify(
-                      {
-                        id: step.id,
-                        type: step.type,
-                        startTime: `${(step.startTime / 1000).toFixed(2)}s`,
-                        timestamp: step.timestamp,
-                      },
-                      null,
-                      2
-                    )}
-                  </div>
-                </div>
+                <SmartContentRenderer
+                  content={JSON.stringify(
+                    {
+                      id: step.id,
+                      type: step.type,
+                      startTime: `${(step.startTime / 1000).toFixed(2)}s`,
+                      timestamp: step.timestamp,
+                    },
+                    null,
+                    2
+                  )}
+                  forceType="json"
+                />
               </div>
             )}
           </div>
@@ -305,7 +276,6 @@ export function DetailPanel({ selectedItem }: DetailPanelProps): React.ReactElem
 
     // Tool step
     const toolColor = getToolColor(step.toolName || "");
-    const inputData = getInputSummary(step.toolInput);
 
     return (
       <div className="detail-panel">
@@ -319,23 +289,10 @@ export function DetailPanel({ selectedItem }: DetailPanelProps): React.ReactElem
           >
             {getToolIcon(step.toolName || "")}
           </div>
-          <div className="detail-title-section">
-            <div className="detail-title">{step.toolName}</div>
-            <div className="detail-subtitle">
-              {formatDuration(step.toolDuration || 0)} · {new Date(step.timestamp).toLocaleTimeString("ko-KR")}
-            </div>
+          <div className="detail-title">{step.toolName}</div>
+          <div className="detail-meta">
+            {formatDuration(step.toolDuration || 0)} · {new Date(step.timestamp).toLocaleTimeString("ko-KR")}
           </div>
-          <label className="json-toggle">
-            <span>JSON</span>
-            <input
-              type="checkbox"
-              checked={showJson}
-              onChange={(e) => setShowJson(e.target.checked)}
-            />
-            <span className="toggle-track">
-              <span className="toggle-thumb"></span>
-            </span>
-          </label>
         </div>
 
         <div className="detail-tabs">
@@ -372,40 +329,17 @@ export function DetailPanel({ selectedItem }: DetailPanelProps): React.ReactElem
                 <div className="section-header">
                   <span className="section-title">Input</span>
                 </div>
-                <div className="section-content">
-                  {showJson ? (
-                    <div className="code-block">{formatJson(step.toolInput)}</div>
-                  ) : (
-                    <div className="input-summary">
-                      {typeof inputData === "object" ? (
-                        Object.entries(inputData).map(([key, value]) => (
-                          <div key={key} className="input-row">
-                            <span className="input-key">{key}:</span>
-                            <span className="input-value">
-                              {typeof value === "string"
-                                ? value.length > 100
-                                  ? value.slice(0, 100) + "..."
-                                  : value
-                                : JSON.stringify(value)}
-                            </span>
-                          </div>
-                        ))
-                      ) : (
-                        <span className="input-value">{String(inputData)}</span>
-                      )}
-                    </div>
-                  )}
-                </div>
+                <SmartContentRenderer content={step.toolInput || "{}"} forceType="json" />
               </div>
 
               {step.toolOutput && (
                 <div className="detail-section">
                   <div className="section-header">
-                    <span className="section-title">Output</span>
+                    <span className="section-title">Output Preview</span>
                   </div>
-                  <div className="section-content">
-                    <div className="code-block output-preview">{step.toolOutput}</div>
-                  </div>
+                  <SmartContentRenderer
+                    content={step.toolOutput.length > 2000 ? step.toolOutput.slice(0, 2000) + "\n... (truncated)" : step.toolOutput}
+                  />
                 </div>
               )}
 
@@ -437,9 +371,7 @@ export function DetailPanel({ selectedItem }: DetailPanelProps): React.ReactElem
               <div className="section-header">
                 <span className="section-title">Tool Input</span>
               </div>
-              <div className="section-content">
-                <div className="code-block">{formatJson(step.toolInput)}</div>
-              </div>
+              <SmartContentRenderer content={step.toolInput || "{}"} forceType="json" />
             </div>
           )}
 
@@ -451,13 +383,13 @@ export function DetailPanel({ selectedItem }: DetailPanelProps): React.ReactElem
                   {step.isError ? "Error" : "Result"}
                 </span>
               </div>
-              <div className="section-content">
-                {step.toolOutput ? (
-                  <div className="code-block">{step.toolOutput}</div>
-                ) : (
+              {step.toolOutput ? (
+                <SmartContentRenderer content={step.toolOutput} />
+              ) : (
+                <div className="section-content">
                   <div className="empty-output">No output recorded</div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -466,23 +398,22 @@ export function DetailPanel({ selectedItem }: DetailPanelProps): React.ReactElem
               <div className="section-header">
                 <span className="section-title">Metadata</span>
               </div>
-              <div className="section-content">
-                <div className="code-block">
-                  {JSON.stringify(
-                    {
-                      id: step.id,
-                      type: step.type,
-                      toolName: step.toolName,
-                      duration: `${step.toolDuration}ms`,
-                      startTime: `${(step.startTime / 1000).toFixed(2)}s`,
-                      isError: step.isError,
-                      timestamp: step.timestamp,
-                    },
-                    null,
-                    2
-                  )}
-                </div>
-              </div>
+              <SmartContentRenderer
+                content={JSON.stringify(
+                  {
+                    id: step.id,
+                    type: step.type,
+                    toolName: step.toolName,
+                    duration: `${step.toolDuration}ms`,
+                    startTime: `${(step.startTime / 1000).toFixed(2)}s`,
+                    isError: step.isError,
+                    timestamp: step.timestamp,
+                  },
+                  null,
+                  2
+                )}
+                forceType="json"
+              />
             </div>
           )}
         </div>
@@ -529,9 +460,7 @@ export function DetailPanel({ selectedItem }: DetailPanelProps): React.ReactElem
                 <span className="section-title">Response Content</span>
                 <span className="section-badge success">Final</span>
               </div>
-              <div className="section-content final-response-content">
-                <div className="message-content">{response.content}</div>
-              </div>
+              <SmartContentRenderer content={response.content} />
             </div>
           )}
 
@@ -540,18 +469,17 @@ export function DetailPanel({ selectedItem }: DetailPanelProps): React.ReactElem
               <div className="section-header">
                 <span className="section-title">Metadata</span>
               </div>
-              <div className="section-content">
-                <div className="code-block">
-                  {JSON.stringify(
-                    {
-                      id: response.id,
-                      timestamp: response.timestamp,
-                    },
-                    null,
-                    2
-                  )}
-                </div>
-              </div>
+              <SmartContentRenderer
+                content={JSON.stringify(
+                  {
+                    id: response.id,
+                    timestamp: response.timestamp,
+                  },
+                  null,
+                  2
+                )}
+                forceType="json"
+              />
             </div>
           )}
         </div>
@@ -596,21 +524,21 @@ const detailPanelStyles = `
   }
 
   .detail-header {
-    padding: var(--space-md) var(--space-lg);
+    padding: var(--space-sm) var(--space-lg);
     border-bottom: 1px solid var(--border-subtle);
     display: flex;
     align-items: center;
-    gap: var(--space-md);
+    gap: var(--space-sm);
   }
 
   .detail-icon {
-    width: 36px;
-    height: 36px;
+    width: 28px;
+    height: 28px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: var(--radius-md);
-    font-size: 14px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
     font-weight: 700;
     font-family: var(--font-mono);
   }
@@ -635,67 +563,17 @@ const detailPanelStyles = `
     font-size: 18px;
   }
 
-  .detail-title-section {
-    flex: 1;
-  }
-
   .detail-title {
-    font-size: 15px;
+    flex: 1;
+    font-size: 14px;
     font-weight: 600;
     color: var(--text-primary);
   }
 
-  .detail-subtitle {
+  .detail-meta {
     font-family: var(--font-mono);
-    font-size: 12px;
-    color: var(--text-muted);
-    margin-top: 2px;
-  }
-
-  .json-toggle {
-    display: flex;
-    align-items: center;
-    gap: var(--space-xs);
     font-size: 11px;
     color: var(--text-muted);
-    cursor: pointer;
-    transition: color 0.15s ease;
-  }
-
-  .json-toggle:hover {
-    color: var(--text-secondary);
-  }
-
-  .json-toggle input {
-    display: none;
-  }
-
-  .json-toggle .toggle-track {
-    width: 28px;
-    height: 16px;
-    background: var(--bg-active);
-    border-radius: 8px;
-    position: relative;
-    transition: background 0.15s ease;
-  }
-
-  .json-toggle input:checked + .toggle-track {
-    background: var(--accent-primary);
-  }
-
-  .json-toggle .toggle-thumb {
-    width: 12px;
-    height: 12px;
-    background: var(--text-primary);
-    border-radius: 50%;
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    transition: transform 0.15s ease;
-  }
-
-  .json-toggle input:checked + .toggle-track .toggle-thumb {
-    transform: translateX(12px);
   }
 
   .detail-tabs {
@@ -736,7 +614,11 @@ const detailPanelStyles = `
   }
 
   .detail-section {
-    margin-bottom: var(--space-lg);
+    margin-bottom: var(--space-md);
+  }
+
+  .detail-section:last-child {
+    margin-bottom: 0;
   }
 
   .section-header {
@@ -862,33 +744,6 @@ const detailPanelStyles = `
     font-weight: 600;
     color: var(--text-primary);
     margin-top: 4px;
-  }
-
-  .input-summary {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-sm);
-  }
-
-  .input-row {
-    display: flex;
-    gap: var(--space-sm);
-  }
-
-  .input-key {
-    font-family: var(--font-mono);
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--text-secondary);
-    min-width: 100px;
-    flex-shrink: 0;
-  }
-
-  .input-value {
-    font-family: var(--font-mono);
-    font-size: 12px;
-    color: var(--text-muted);
-    word-break: break-all;
   }
 
   .status-info {

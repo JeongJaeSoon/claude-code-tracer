@@ -146,7 +146,7 @@ export function SessionDetail({ sessionId, onBack }: SessionDetailProps): React.
         <CollapsibleSidebar
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-          title="TRACE"
+          title="TRACE TREE"
         >
           {timelineData ? (
             <TraceTree
@@ -196,7 +196,7 @@ export function SessionDetail({ sessionId, onBack }: SessionDetailProps): React.
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: var(--space-md) var(--space-lg);
+          padding: var(--space-sm) var(--space-lg);
           border-bottom: 1px solid var(--border-subtle);
           background: var(--bg-secondary);
           flex-shrink: 0;

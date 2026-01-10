@@ -1,26 +1,13 @@
 import { useMemo, useRef } from "react";
 import type { TimelineData, Turn, TimelineLane } from "../types/timeline";
 import type { SelectedItem } from "./TraceTree";
+import { TOOL_COLORS, getToolColor } from "../constants/tools";
 
 interface HorizontalTimelineProps {
   data: TimelineData;
   onSelect?: (item: SelectedItem | null) => void;
   selectedItem?: SelectedItem | null;
 }
-
-// Tool colors for visualization
-const TOOL_COLORS: Record<string, string> = {
-  Bash: "#10b981",
-  Read: "#3b82f6",
-  Edit: "#f59e0b",
-  Write: "#8b5cf6",
-  Grep: "#ec4899",
-  Glob: "#06b6d4",
-  Task: "#f97316",
-  WebFetch: "#6366f1",
-  WebSearch: "#6366f1",
-  TodoWrite: "#a855f7",
-};
 
 const LANE_COLORS: Record<string, string> = {
   main: "#8b5cf6",
@@ -143,7 +130,7 @@ export function HorizontalTimeline({
                 // Get dominant tool color
                 const toolSteps = turn.steps.filter((s) => s.type === "tool");
                 const dominantTool = toolSteps[0]?.toolName || "";
-                const barColor = TOOL_COLORS[dominantTool] || lane.color;
+                const barColor = dominantTool ? getToolColor(dominantTool) : lane.color;
 
                 return (
                   <div

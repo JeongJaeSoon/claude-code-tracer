@@ -61,9 +61,31 @@ export function CompactTimeline({
   onSelect,
 }: CompactTimelineProps): React.ReactElement {
   const containerRef = useRef<HTMLDivElement>(null);
+  const legendRef = useRef<HTMLDivElement>(null);
   const [hoveredTurnId, setHoveredTurnId] = useState<string | null>(null);
   const [showLegend, setShowLegend] = useState(false);
   const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // 범례 외부 클릭 시 닫기
+  useEffect(() => {
+    if (!showLegend) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (legendRef.current && !legendRef.current.contains(e.target as Node)) {
+        setShowLegend(false);
+      }
+    };
+
+    // 다음 틱에 리스너 추가 (버튼 클릭 이벤트와 충돌 방지)
+    const timeoutId = setTimeout(() => {
+      document.addEventListener("click", handleClickOutside);
+    }, 0);
+
+    return () => {
+      clearTimeout(timeoutId);
+      document.removeEventListener("click", handleClickOutside);
+    };
+  }, [showLegend]);
 
   // Build turn blocks with time-based marker spacing
   const { turnBlocks, totalWidth } = useMemo(() => {
@@ -321,47 +343,49 @@ export function CompactTimeline({
       <div className="timeline-header">
         <div className="timeline-title-group">
           <span className="timeline-title">Timeline</span>
-          <button
-            className={`legend-btn ${showLegend ? "active" : ""}`}
-            onClick={() => setShowLegend(!showLegend)}
-            title="Show legend"
-          >
-            ?
-          </button>
-        </div>
+          <div className="legend-wrapper" ref={legendRef}>
+            <button
+              className={`legend-btn ${showLegend ? "active" : ""}`}
+              onClick={() => setShowLegend(!showLegend)}
+              title="Show legend"
+            >
+              ?
+            </button>
 
-        {/* Legend popup */}
-        {showLegend && (
-          <div className="legend-popup">
-            <div className="legend-section">
-              <div className="legend-section-title">Markers</div>
-              <div className="legend-row">
-                <span className="legend-marker thinking-legend" />
-                <span className="legend-text">Thinking</span>
-              </div>
-              <div className="legend-row">
-                <span className="legend-marker assistant-legend" />
-                <span className="legend-text">Assistant</span>
-              </div>
-              <div className="legend-row">
-                <span className="legend-marker final-legend">✓</span>
-                <span className="legend-text">Final Response</span>
-              </div>
-            </div>
-            <div className="legend-section">
-              <div className="legend-section-title">Tools</div>
-              {toolEntries.map(([name, color]) => (
-                <div key={name} className="legend-row">
-                  <span
-                    className="legend-marker tool-color"
-                    style={{ background: color }}
-                  />
-                  <span className="legend-text">{name}</span>
+            {/* Legend popup */}
+            {showLegend && (
+              <div className="legend-popup">
+                <div className="legend-section">
+                  <div className="legend-section-title">Markers</div>
+                  <div className="legend-row">
+                    <span className="legend-marker thinking-legend" />
+                    <span className="legend-text">Thinking</span>
+                  </div>
+                  <div className="legend-row">
+                    <span className="legend-marker assistant-legend" />
+                    <span className="legend-text">Assistant</span>
+                  </div>
+                  <div className="legend-row">
+                    <span className="legend-marker final-legend">✓</span>
+                    <span className="legend-text">Final Response</span>
+                  </div>
                 </div>
-              ))}
-            </div>
+                <div className="legend-section">
+                  <div className="legend-section-title">Tools</div>
+                  {toolEntries.map(([name, color]) => (
+                    <div key={name} className="legend-row">
+                      <span
+                        className="legend-marker tool-color"
+                        style={{ background: color }}
+                      />
+                      <span className="legend-text">{name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
       {/* Timeline area with navigation */}
@@ -506,6 +530,11 @@ const compactTimelineStyles = `
     color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.05em;
+  }
+
+  /* Legend Wrapper */
+  .legend-wrapper {
+    position: relative;
   }
 
   /* Legend Button */
