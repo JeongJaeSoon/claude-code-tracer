@@ -57,26 +57,71 @@ ingestRoutes.post("/", async (c) => {
   }
 });
 
-// POST /api/ingest/file - Receive file path and read it
+// POST /api/ingest/file - Receive file path and read it (includes sub-agents)
 ingestRoutes.post("/file", async (c) => {
   try {
-    const { path } = await c.req.json<{ path: string }>();
+    const { path: filePath } = await c.req.json<{ path: string }>();
 
-    if (!path) {
+    if (!filePath) {
       return c.json({ error: "path is required" }, 400);
     }
 
-    const file = Bun.file(path);
+    const file = Bun.file(filePath);
     if (!await file.exists()) {
       return c.json({ error: "File not found" }, 404);
     }
 
+    // Parse main session file
     const content = await file.text();
     const result = await parseJSONL(content);
 
     if (!result.session) {
       return c.json({ error: "Failed to parse session data" }, 400);
     }
+
+    // Check for sub-agents directory
+    // Path: {sessionId}.jsonl -> {sessionId}/subagents/
+    const sessionDir = filePath.replace(".jsonl", "");
+    const subagentsDir = `${sessionDir}/subagents`;
+
+    let subAgentCount = 0;
+    const subAgentFile = Bun.file(subagentsDir);
+
+    try {
+      const { readdir } = await import("node:fs/promises");
+      const files = await readdir(subagentsDir);
+
+      for (const agentFile of files) {
+        if (agentFile.endsWith(".jsonl")) {
+          const subAgentPath = `${subagentsDir}/${agentFile}`;
+          const subContent = await Bun.file(subAgentPath).text();
+          const subResult = await parseJSONL(subContent);
+
+          // Merge sub-agent data into main result
+          if (subResult.toolCalls.length > 0) {
+            result.toolCalls.push(...subResult.toolCalls);
+          }
+          if (subResult.messages.length > 0) {
+            result.messages.push(...subResult.messages);
+          }
+
+          // Accumulate tokens
+          if (subResult.session) {
+            result.session.inputTokens = (result.session.inputTokens || 0) + (subResult.session.inputTokens || 0);
+            result.session.outputTokens = (result.session.outputTokens || 0) + (subResult.session.outputTokens || 0);
+            result.session.cacheReadTokens = (result.session.cacheReadTokens || 0) + (subResult.session.cacheReadTokens || 0);
+          }
+
+          subAgentCount++;
+        }
+      }
+    } catch {
+      // subagents directory doesn't exist or can't be read - that's fine
+    }
+
+    // Update counts
+    result.session.toolCallCount = result.toolCalls.length;
+    result.session.subAgentCount = subAgentCount;
 
     // Insert session
     await db.insert(sessions).values(result.session).onConflictDoUpdate({
@@ -113,6 +158,7 @@ ingestRoutes.post("/file", async (c) => {
       sessionId: result.session.id,
       toolCallCount: result.toolCalls.length,
       messageCount: result.messages.length,
+      subAgentCount,
     });
   } catch (error) {
     console.error("Ingest file error:", error);
