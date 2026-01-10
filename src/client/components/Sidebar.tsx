@@ -1,8 +1,8 @@
 import { useTheme } from "../App.tsx";
 
 interface SidebarProps {
-  currentPage: "list" | "detail";
-  onNavigate: (page: "list" | "detail") => void;
+  currentPage: "projects" | "detail";
+  onNavigate: (page: "projects" | "detail") => void;
 }
 
 export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
@@ -22,24 +22,24 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
         <div className="nav-section">
           <div className="nav-section-title">Overview</div>
           <button
-            className={`nav-item ${currentPage === "list" ? "active" : ""}`}
-            onClick={() => onNavigate("list")}
+            className={`nav-item ${currentPage === "projects" ? "active" : ""}`}
+            onClick={() => onNavigate("projects")}
           >
             <svg className="nav-item-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
             </svg>
-            Sessions
+            Projects
           </button>
           <button
             className={`nav-item ${currentPage === "detail" ? "active" : ""}`}
-            onClick={() => onNavigate("detail")}
+            disabled
           >
             <svg className="nav-item-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z"/>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
-            Flamegraph
+            Timeline
           </button>
-          <button className="nav-item">
+          <button className="nav-item" disabled>
             <svg className="nav-item-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
             </svg>

@@ -1,5 +1,5 @@
 import { useState, useEffect, createContext, useContext } from "react";
-import { SessionList } from "./pages/SessionList.tsx";
+import { ProjectList } from "./pages/ProjectList.tsx";
 import { SessionDetail } from "./pages/SessionDetail.tsx";
 import { Sidebar } from "./components/Sidebar.tsx";
 
@@ -21,7 +21,7 @@ export function useTheme() {
 }
 
 // Router state
-type Page = "list" | "detail";
+type Page = "projects" | "detail";
 
 interface RouterState {
   page: Page;
@@ -30,7 +30,7 @@ interface RouterState {
 
 export function App() {
   const [theme, setTheme] = useState<Theme>("dark");
-  const [router, setRouter] = useState<RouterState>({ page: "list" });
+  const [router, setRouter] = useState<RouterState>({ page: "projects" });
 
   // Apply theme to document
   useEffect(() => {
@@ -49,13 +49,13 @@ export function App() {
           onNavigate={navigate}
         />
         <main className="main">
-          {router.page === "list" && (
-            <SessionList onSelectSession={(id) => navigate("detail", id)} />
+          {router.page === "projects" && (
+            <ProjectList onSelectSession={(id) => navigate("detail", id)} />
           )}
           {router.page === "detail" && router.sessionId && (
             <SessionDetail
               sessionId={router.sessionId}
-              onBack={() => navigate("list")}
+              onBack={() => navigate("projects")}
             />
           )}
         </main>

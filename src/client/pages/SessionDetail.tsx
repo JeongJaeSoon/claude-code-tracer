@@ -1,64 +1,58 @@
-import { useState, useEffect } from "react";
-
-interface ToolCall {
-  id: string;
-  toolName: string;
-  toolInput: string | null;
-  durationMs: number | null;
-  startTime: number;
-  isError: boolean;
-  timestamp: string;
-}
-
-interface Message {
-  id: string;
-  type: "user" | "assistant" | "summary";
-  content: string | null;
-  timestamp: string;
-}
-
-interface Session {
-  id: string;
-  projectName: string;
-  projectDir: string;
-  model: string | null;
-  startedAt: string;
-  endedAt: string | null;
-  totalDurationMs: number | null;
-  inputTokens: number;
-  outputTokens: number;
-  cacheReadTokens: number;
-  toolCallCount: number;
-  subAgentCount: number;
-  status: "running" | "completed" | "error";
-  toolCalls: ToolCall[];
-  messages: Message[];
-}
+import { useState, useEffect, useMemo } from "react";
+import { TraceTree, type SelectedItem } from "../components/TraceTree.tsx";
+import { DetailPanel } from "../components/DetailPanel.tsx";
+import type { TimelineData, Session } from "../types/timeline.ts";
 
 interface SessionDetailProps {
   sessionId: string;
   onBack: () => void;
 }
 
-export function SessionDetail({ sessionId, onBack }: SessionDetailProps) {
+export function SessionDetail({ sessionId, onBack }: SessionDetailProps): React.ReactElement {
   const [session, setSession] = useState<Session | null>(null);
+  const [timelineData, setTimelineData] = useState<TimelineData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null);
 
   useEffect(() => {
-    fetchSession();
+    fetchData();
   }, [sessionId]);
 
-  async function fetchSession() {
+  async function fetchData() {
     try {
-      const res = await fetch(`/api/sessions/${sessionId}`);
-      const data = await res.json();
-      setSession(data);
+      const [sessionRes, timelineRes] = await Promise.all([
+        fetch(`/api/sessions/${sessionId}`),
+        fetch(`/api/timeline/${sessionId}`),
+      ]);
+
+      const sessionData = await sessionRes.json();
+      const tlData = await timelineRes.json();
+
+      setSession(sessionData);
+      setTimelineData(tlData);
     } catch (error) {
-      console.error("Failed to fetch session:", error);
+      console.error("Failed to fetch data:", error);
     } finally {
       setLoading(false);
     }
   }
+
+  // Calculate max duration for duration bars
+  const maxDuration = useMemo(() => {
+    if (!timelineData) return 1000;
+
+    let max = 0;
+    for (const lane of timelineData.lanes) {
+      for (const turn of lane.turns) {
+        // Sum tool durations per turn
+        const turnToolDuration = turn.steps
+          .filter(s => s.type === "tool")
+          .reduce((sum, s) => sum + (s.toolDuration || 0), 0);
+        if (turnToolDuration > max) max = turnToolDuration;
+      }
+    }
+    return max || 1000;
+  }, [timelineData]);
 
   function formatDuration(ms: number | null): string {
     if (!ms) return "-";
@@ -73,41 +67,6 @@ export function SessionDetail({ sessionId, onBack }: SessionDetailProps) {
     if (tokens >= 1000000) return `${(tokens / 1000000).toFixed(1)}M`;
     if (tokens >= 1000) return `${(tokens / 1000).toFixed(1)}K`;
     return String(tokens);
-  }
-
-  function formatDate(dateStr: string): string {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString("ko-KR", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  }
-
-  function formatTime(dateStr: string): string {
-    const date = new Date(dateStr);
-    return date.toLocaleTimeString("ko-KR", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
-  }
-
-  function getToolColor(toolName: string): string {
-    const colors: Record<string, string> = {
-      Bash: "var(--tool-bash)",
-      Read: "var(--tool-read)",
-      Edit: "var(--tool-edit)",
-      Write: "var(--tool-write)",
-      Grep: "var(--tool-grep)",
-      Glob: "var(--tool-glob)",
-      Task: "var(--tool-task)",
-      WebFetch: "var(--tool-web)",
-      WebSearch: "var(--tool-web)",
-    };
-    return colors[toolName] || "var(--text-tertiary)";
   }
 
   if (loading) {
@@ -128,33 +87,22 @@ export function SessionDetail({ sessionId, onBack }: SessionDetailProps) {
   }
 
   return (
-    <>
-      <header className="main-header">
-        <div>
+    <div className="session-detail-container">
+      {/* Header */}
+      <header className="session-header">
+        <div className="header-left">
           <div className="breadcrumb">
             <button className="breadcrumb-link" onClick={onBack}>Sessions</button>
             <span className="breadcrumb-sep">/</span>
-            <span className="breadcrumb-current">{session.projectName}</span>
-          </div>
-          <h1 className="page-title">Session {session.id.slice(0, 18)}</h1>
-          <div className="detail-meta">
-            <span className="meta-item">
-              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              </svg>
-              {formatDate(session.startedAt)}
-            </span>
-            <span className="meta-divider">•</span>
-            <span className="meta-item">{formatDuration(session.totalDurationMs)}</span>
-            {session.model && (
-              <>
-                <span className="meta-divider">•</span>
-                <span className="meta-item">{session.model}</span>
-              </>
-            )}
+            <span className="breadcrumb-project">{session.projectName}</span>
+            <span className="breadcrumb-sep">/</span>
+            <span className="breadcrumb-current">{session.id.slice(0, 18)}</span>
           </div>
         </div>
         <div className="header-actions">
+          <button className="btn btn-ghost" onClick={() => fetchData()}>
+            <span>↻</span> Refresh
+          </button>
           <button className="btn btn-ghost" onClick={onBack}>
             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
@@ -164,112 +112,92 @@ export function SessionDetail({ sessionId, onBack }: SessionDetailProps) {
         </div>
       </header>
 
-      <div className="main-content">
-        {/* Metrics Panel */}
-        <div className="metrics-panel">
-          <div className="metric-card">
-            <div className="metric-icon">⏱️</div>
-            <div className="metric-value">{formatDuration(session.totalDurationMs)}</div>
-            <div className="metric-label">Duration</div>
-          </div>
-          <div className="metric-card">
-            <div className="metric-icon">📥</div>
-            <div className="metric-value">{formatTokens(session.inputTokens)}</div>
-            <div className="metric-label">Input Tokens</div>
-          </div>
-          <div className="metric-card">
-            <div className="metric-icon">📤</div>
-            <div className="metric-value">{formatTokens(session.outputTokens)}</div>
-            <div className="metric-label">Output Tokens</div>
-          </div>
-          <div className="metric-card">
-            <div className="metric-icon">💾</div>
-            <div className="metric-value">{formatTokens(session.cacheReadTokens)}</div>
-            <div className="metric-label">Cache Tokens</div>
-          </div>
-          <div className="metric-card">
-            <div className="metric-icon">🔧</div>
-            <div className="metric-value">{session.toolCallCount}</div>
-            <div className="metric-label">Tool Calls</div>
-          </div>
-          <div className="metric-card">
-            <div className="metric-icon">🤖</div>
-            <div className="metric-value">{session.subAgentCount}</div>
-            <div className="metric-label">Sub-agents</div>
+      {/* Stats Bar */}
+      <div className="stats-bar">
+        <div className="stat-item">
+          <div className="stat-icon duration">⏱</div>
+          <div className="stat-content">
+            <div className="stat-value">{formatDuration(session.totalDurationMs)}</div>
+            <div className="stat-label">Duration</div>
           </div>
         </div>
-
-        {/* Flamegraph Placeholder */}
-        <div className="flamegraph-section">
-          <div className="flamegraph-header">
-            <div className="flamegraph-title">Flamegraph</div>
-            <div className="flamegraph-note">
-              flame-chart-js integration coming soon
+        <div className="stat-item">
+          <div className="stat-icon tokens">◈</div>
+          <div className="stat-content">
+            <div className="stat-value">{formatTokens(session.inputTokens + session.outputTokens)}</div>
+            <div className="stat-label">Tokens</div>
+          </div>
+        </div>
+        <div className="stat-item">
+          <div className="stat-icon tools">⚙</div>
+          <div className="stat-content">
+            <div className="stat-value">{session.toolCallCount}</div>
+            <div className="stat-label">Tools</div>
+          </div>
+        </div>
+        <div className="stat-item">
+          <div className="stat-icon agents">◉</div>
+          <div className="stat-content">
+            <div className="stat-value">{session.subAgentCount}</div>
+            <div className="stat-label">Sub-agents</div>
+          </div>
+        </div>
+        {session.model && (
+          <div className="stat-item">
+            <div className="stat-icon model">🤖</div>
+            <div className="stat-content">
+              <div className="stat-value model-name">{session.model}</div>
+              <div className="stat-label">Model</div>
             </div>
           </div>
-          <div className="flamegraph-canvas">
-            {session.toolCalls.length === 0 ? (
-              <div className="empty-flamegraph">No tool calls recorded</div>
-            ) : (
-              <div className="simple-flamegraph">
-                {session.toolCalls.slice(0, 20).map((tool, index) => (
-                  <div
-                    key={tool.id}
-                    className="flame-bar"
-                    style={{
-                      width: `${Math.max(10, (tool.durationMs || 100) / 100)}%`,
-                      maxWidth: "100%",
-                      backgroundColor: getToolColor(tool.toolName),
-                      animationDelay: `${index * 50}ms`,
-                    }}
-                  >
-                    <span className="flame-label">{tool.toolName}</span>
-                    <span className="flame-duration">{tool.durationMs}ms</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+        )}
+      </div>
+
+      {/* Content Area - Two Panel Layout */}
+      <div className="content-area">
+        {/* Left: Trace Tree */}
+        <div className="trace-panel">
+          {timelineData ? (
+            <TraceTree
+              data={timelineData}
+              maxDuration={maxDuration}
+              onSelect={setSelectedItem}
+              selectedItem={selectedItem}
+            />
+          ) : (
+            <div className="loading-panel">Loading trace...</div>
+          )}
         </div>
 
-        {/* Timeline Section */}
-        <div className="timeline-section">
-          <div className="timeline-header">
-            <div className="timeline-title">Event Timeline</div>
-          </div>
-          <div className="timeline-content">
-            {session.toolCalls.map((tool) => (
-              <div key={tool.id} className="timeline-item">
-                <div
-                  className="timeline-icon"
-                  style={{ backgroundColor: `${getToolColor(tool.toolName)}20`, color: getToolColor(tool.toolName) }}
-                >
-                  {tool.toolName.charAt(0)}
-                </div>
-                <div className="timeline-body">
-                  <div className="timeline-name">{tool.toolName}</div>
-                  <div className="timeline-detail">
-                    {tool.toolInput ? truncateJson(tool.toolInput, 60) : "-"}
-                  </div>
-                </div>
-                <div className="timeline-meta">
-                  <div className="timeline-time">{formatTime(tool.timestamp)}</div>
-                  <div className="timeline-duration">{tool.durationMs}ms</div>
-                </div>
-              </div>
-            ))}
-          </div>
+        {/* Right: Detail Panel */}
+        <div className="detail-panel-wrapper">
+          <DetailPanel selectedItem={selectedItem} />
         </div>
       </div>
 
       <style>{`
-        .main-header {
-          padding: var(--space-lg) var(--space-xl);
-          border-bottom: 1px solid var(--border-subtle);
+        .session-detail-container {
           display: flex;
-          align-items: flex-start;
+          flex-direction: column;
+          height: 100%;
+          overflow: hidden;
+        }
+
+        /* Header */
+        .session-header {
+          display: flex;
+          align-items: center;
           justify-content: space-between;
+          padding: var(--space-md) var(--space-lg);
+          border-bottom: 1px solid var(--border-subtle);
+          background: var(--bg-secondary);
           flex-shrink: 0;
+        }
+
+        .header-left {
+          display: flex;
+          flex-direction: column;
+          gap: var(--space-xs);
         }
 
         .breadcrumb {
@@ -277,54 +205,35 @@ export function SessionDetail({ sessionId, onBack }: SessionDetailProps) {
           align-items: center;
           gap: var(--space-sm);
           font-size: 13px;
-          margin-bottom: var(--space-sm);
         }
 
         .breadcrumb-link {
-          color: var(--text-tertiary);
+          color: var(--text-muted);
           background: none;
           border: none;
           cursor: pointer;
           padding: 0;
           font-size: inherit;
+          transition: color 0.15s;
         }
 
         .breadcrumb-link:hover {
-          color: var(--text-primary);
+          color: var(--accent-primary);
         }
 
         .breadcrumb-sep {
           color: var(--text-muted);
+          opacity: 0.5;
+        }
+
+        .breadcrumb-project {
+          color: var(--text-secondary);
         }
 
         .breadcrumb-current {
           color: var(--text-primary);
-          font-weight: 500;
-        }
-
-        .page-title {
-          font-size: 22px;
-          font-weight: 700;
-          letter-spacing: -0.02em;
-        }
-
-        .detail-meta {
-          display: flex;
-          align-items: center;
-          gap: var(--space-md);
-          font-size: 13px;
-          color: var(--text-secondary);
-          margin-top: var(--space-xs);
-        }
-
-        .meta-item {
-          display: flex;
-          align-items: center;
-          gap: var(--space-xs);
-        }
-
-        .meta-divider {
-          color: var(--text-muted);
+          font-family: var(--font-mono);
+          font-weight: 600;
         }
 
         .header-actions {
@@ -343,7 +252,8 @@ export function SessionDetail({ sessionId, onBack }: SessionDetailProps) {
           font-weight: 500;
           border: none;
           cursor: pointer;
-          transition: all var(--transition-fast);
+          transition: all 0.15s;
+          font-family: var(--font-sans);
         }
 
         .btn-primary {
@@ -354,227 +264,106 @@ export function SessionDetail({ sessionId, onBack }: SessionDetailProps) {
         .btn-ghost {
           background: transparent;
           color: var(--text-secondary);
-          border: 1px solid var(--border-default);
+          border: 1px solid var(--border-subtle);
         }
 
         .btn-ghost:hover {
           background: var(--bg-hover);
           color: var(--text-primary);
+          border-color: var(--border-default);
         }
 
-        .main-content {
-          flex: 1;
-          padding: var(--space-xl);
-          padding-bottom: var(--space-2xl);
-          overflow-y: auto;
-        }
-
-        .metrics-panel {
-          display: grid;
-          grid-template-columns: repeat(6, 1fr);
+        /* Stats Bar */
+        .stats-bar {
+          display: flex;
           gap: var(--space-md);
-          margin-bottom: var(--space-xl);
+          padding: var(--space-md) var(--space-lg);
+          background: var(--bg-elevated);
+          border-bottom: 1px solid var(--border-subtle);
+          flex-shrink: 0;
+          overflow-x: auto;
         }
 
-        .metric-card {
-          background: var(--bg-elevated);
-          border: 1px solid var(--border-subtle);
+        .stat-item {
+          display: flex;
+          align-items: center;
+          gap: var(--space-sm);
+          padding: var(--space-sm) var(--space-md);
+          background: var(--bg-secondary);
           border-radius: var(--radius-md);
-          padding: var(--space-md);
-          text-align: center;
-        }
-
-        .metric-icon {
-          width: 32px;
-          height: 32px;
-          margin: 0 auto var(--space-sm);
-          background: var(--bg-tertiary);
-          border-radius: var(--radius-sm);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 16px;
-        }
-
-        .metric-value {
-          font-size: 20px;
-          font-weight: 700;
-          font-family: var(--font-mono);
-          letter-spacing: -0.02em;
-        }
-
-        .metric-label {
-          font-size: 11px;
-          color: var(--text-tertiary);
-          text-transform: uppercase;
-          letter-spacing: 0.03em;
-          margin-top: 2px;
-        }
-
-        .flamegraph-section {
-          background: var(--bg-elevated);
           border: 1px solid var(--border-subtle);
-          border-radius: var(--radius-lg);
-          overflow: hidden;
-          margin-bottom: var(--space-xl);
-        }
-
-        .flamegraph-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: var(--space-md) var(--space-lg);
-          border-bottom: 1px solid var(--border-subtle);
-        }
-
-        .flamegraph-title {
-          font-size: 14px;
-          font-weight: 600;
-        }
-
-        .flamegraph-note {
-          font-size: 12px;
-          color: var(--text-muted);
-        }
-
-        .flamegraph-canvas {
-          min-height: 200px;
-          padding: var(--space-lg);
-          background: var(--bg-primary);
-        }
-
-        .empty-flamegraph {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          height: 150px;
-          color: var(--text-muted);
-        }
-
-        .simple-flamegraph {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-        }
-
-        .flame-bar {
-          height: 28px;
-          border-radius: 4px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 0 var(--space-sm);
-          font-size: 11px;
-          font-weight: 500;
-          color: white;
-          animation: fadeInUp 0.3s ease-out backwards;
-        }
-
-        .flame-label {
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-
-        .flame-duration {
-          font-family: var(--font-mono);
-          font-size: 10px;
-          opacity: 0.8;
-        }
-
-        .timeline-section {
-          background: var(--bg-elevated);
-          border: 1px solid var(--border-subtle);
-          border-radius: var(--radius-lg);
-          overflow: hidden;
-        }
-
-        .timeline-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: var(--space-md) var(--space-lg);
-          border-bottom: 1px solid var(--border-subtle);
-        }
-
-        .timeline-title {
-          font-size: 14px;
-          font-weight: 600;
-        }
-
-        .timeline-content {
-          max-height: 400px;
-          overflow-y: auto;
-        }
-
-        .timeline-item {
-          display: flex;
-          gap: var(--space-md);
-          padding: var(--space-md) var(--space-lg);
-          border-bottom: 1px solid var(--border-subtle);
-          transition: background var(--transition-fast);
-        }
-
-        .timeline-item:last-child {
-          border-bottom: none;
-        }
-
-        .timeline-item:hover {
-          background: var(--bg-hover);
-        }
-
-        .timeline-icon {
-          width: 32px;
-          height: 32px;
-          border-radius: var(--radius-sm);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 14px;
-          font-weight: 600;
           flex-shrink: 0;
         }
 
-        .timeline-body {
-          flex: 1;
-          min-width: 0;
+        .stat-icon {
+          width: 32px;
+          height: 32px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: var(--radius-sm);
+          font-size: 14px;
         }
 
-        .timeline-name {
-          font-size: 13px;
+        .stat-icon.duration { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+        .stat-icon.tokens { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+        .stat-icon.tools { background: rgba(249, 115, 22, 0.15); color: #f97316; }
+        .stat-icon.agents { background: rgba(168, 85, 247, 0.15); color: #a855f7; }
+        .stat-icon.model { background: rgba(236, 72, 153, 0.15); color: #ec4899; }
+
+        .stat-content {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .stat-value {
+          font-family: var(--font-mono);
           font-weight: 600;
+          font-size: 15px;
           color: var(--text-primary);
-          margin-bottom: 2px;
         }
 
-        .timeline-detail {
-          font-family: var(--font-mono);
+        .stat-value.model-name {
           font-size: 12px;
-          color: var(--text-tertiary);
+          max-width: 120px;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
         }
 
-        .timeline-meta {
-          display: flex;
-          flex-direction: column;
-          align-items: flex-end;
-          gap: 2px;
-          flex-shrink: 0;
-        }
-
-        .timeline-time {
-          font-family: var(--font-mono);
+        .stat-label {
           font-size: 11px;
           color: var(--text-muted);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
         }
 
-        .timeline-duration {
-          font-family: var(--font-mono);
-          font-size: 12px;
-          font-weight: 500;
-          color: var(--text-secondary);
+        /* Content Area */
+        .content-area {
+          flex: 1;
+          display: flex;
+          overflow: hidden;
+        }
+
+        .trace-panel {
+          width: 50%;
+          min-width: 400px;
+          max-width: 600px;
+          overflow: hidden;
+        }
+
+        .detail-panel-wrapper {
+          flex: 1;
+          overflow: hidden;
+          min-width: 400px;
+        }
+
+        .loading-panel {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: 100%;
+          color: var(--text-muted);
         }
 
         .loading-container, .error-container {
@@ -586,31 +375,7 @@ export function SessionDetail({ sessionId, onBack }: SessionDetailProps) {
           gap: var(--space-md);
           color: var(--text-tertiary);
         }
-
-        @keyframes fadeInUp {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
       `}</style>
-    </>
+    </div>
   );
-}
-
-function truncateJson(json: string, maxLen: number): string {
-  try {
-    const parsed = JSON.parse(json);
-    if (parsed.command) return parsed.command.slice(0, maxLen);
-    if (parsed.file_path) return parsed.file_path;
-    if (parsed.pattern) return parsed.pattern;
-    if (parsed.description) return parsed.description.slice(0, maxLen);
-    return JSON.stringify(parsed).slice(0, maxLen);
-  } catch {
-    return json.slice(0, maxLen);
-  }
 }
