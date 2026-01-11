@@ -142,8 +142,43 @@ sessionsRoutes.get("/", async (c) => {
 			.from(sessions)
 			.where(whereClause);
 
+		// Get first user message for each session
+		const sessionIds = result.map((s) => s.id);
+		let firstPrompts: Record<string, string> = {};
+
+		if (sessionIds.length > 0) {
+			const firstMessages = await db
+				.select({
+					sessionId: messages.sessionId,
+					content: messages.content,
+				})
+				.from(messages)
+				.where(
+					and(
+						inArray(messages.sessionId, sessionIds),
+						eq(messages.type, "user"),
+						sql`(${messages.parentUuid} IS NULL OR ${messages.parentUuid} = '')`,
+						sql`${messages.content} != 'Warmup'`,
+					),
+				)
+				.orderBy(messages.timestamp);
+
+			// Group by sessionId and take first one
+			for (const msg of firstMessages) {
+				if (!firstPrompts[msg.sessionId] && msg.content) {
+					firstPrompts[msg.sessionId] = msg.content;
+				}
+			}
+		}
+
+		// Merge first prompt into sessions
+		const sessionsWithPrompt = result.map((s) => ({
+			...s,
+			firstPrompt: firstPrompts[s.id] || null,
+		}));
+
 		return c.json({
-			sessions: result,
+			sessions: sessionsWithPrompt,
 			total: countResult[0]?.count || 0,
 			limit,
 			offset,

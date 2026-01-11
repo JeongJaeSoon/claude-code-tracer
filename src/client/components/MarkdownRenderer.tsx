@@ -1,7 +1,7 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { SyntaxHighlighter, vscDarkPlus } from "./syntaxHighlighter.ts";
 import { CopyButton } from "./CopyButton.tsx";
+import { SyntaxHighlighter, vscDarkPlus } from "./syntaxHighlighter.ts";
 
 interface MarkdownRendererProps {
 	content: string;

@@ -68,4 +68,5 @@ export interface Session {
 	subAgentCount: number;
 	status: "running" | "completed" | "error";
 	toolTypes?: string[];
+	firstPrompt?: string | null;
 }

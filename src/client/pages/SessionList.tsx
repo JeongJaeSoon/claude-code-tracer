@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { type Project, ProjectSidebar } from "../components/ProjectSidebar.tsx";
 import type { Session } from "../types/timeline.ts";
 import {
 	formatDate,
@@ -6,6 +7,23 @@ import {
 	formatSessionId,
 	formatTokens,
 } from "../utils/format.ts";
+
+// Clean up prompt text for display
+function cleanPrompt(text: string): string | null {
+	// Strip XML/HTML-like tags
+	let cleaned = text.replace(/<[^>]+>/g, "").trim();
+
+	// Skip system messages that aren't real prompts
+	if (
+		cleaned.startsWith("Caveat:") ||
+		cleaned.startsWith("Warmup") ||
+		cleaned.length < 3
+	) {
+		return null;
+	}
+
+	return cleaned;
+}
 
 interface Stats {
 	totalSessions: number;
@@ -29,12 +47,37 @@ export function SessionList({ onSelectSession }: SessionListProps) {
 	const [toolFilters, setToolFilters] = useState<Set<ToolFilter>>(new Set());
 	const [searchQuery, setSearchQuery] = useState("");
 
-	useEffect(() => {
-		fetchData();
-	}, [dateFilter]);
+	// Project state
+	const [projects, setProjects] = useState<Project[]>([]);
+	const [projectsLoading, setProjectsLoading] = useState(true);
+	const [selectedProject, setSelectedProject] = useState<string | null>(null);
 
-	async function fetchData() {
+	// Fetch projects on mount
+	useEffect(() => {
+		fetchProjects();
+	}, []);
+
+	// Fetch sessions when project or date filter changes
+	useEffect(() => {
+		fetchSessions();
+	}, [dateFilter, selectedProject]);
+
+	async function fetchProjects() {
 		try {
+			setProjectsLoading(true);
+			const res = await fetch("/api/projects");
+			const data = await res.json();
+			setProjects(data.projects || []);
+		} catch (error) {
+			console.error("Failed to fetch projects:", error);
+		} finally {
+			setProjectsLoading(false);
+		}
+	}
+
+	async function fetchSessions() {
+		try {
+			setLoading(true);
 			const params = new URLSearchParams();
 			if (dateFilter !== "all") {
 				params.set("dateRange", dateFilter);
@@ -43,8 +86,13 @@ export function SessionList({ onSelectSession }: SessionListProps) {
 				params.set("search", searchQuery);
 			}
 
+			// Determine API endpoint based on selected project
+			const sessionsUrl = selectedProject
+				? `/api/projects/${encodeURIComponent(selectedProject)}/sessions?${params.toString()}`
+				: `/api/sessions?${params.toString()}`;
+
 			const [sessionsRes, statsRes] = await Promise.all([
-				fetch(`/api/sessions?${params.toString()}`),
+				fetch(sessionsUrl),
 				fetch("/api/sessions/stats"),
 			]);
 
@@ -58,6 +106,11 @@ export function SessionList({ onSelectSession }: SessionListProps) {
 		} finally {
 			setLoading(false);
 		}
+	}
+
+	function handleRefresh() {
+		fetchProjects();
+		fetchSessions();
 	}
 
 	function toggleToolFilter(tool: ToolFilter) {
@@ -87,6 +140,22 @@ export function SessionList({ onSelectSession }: SessionListProps) {
 					</p>
 				</div>
 				<div className="header-actions">
+					{/* Mobile project selector */}
+					<select
+						className="mobile-project-select"
+						value={selectedProject ?? ""}
+						onChange={(e) =>
+							setSelectedProject(e.target.value === "" ? null : e.target.value)
+						}
+					>
+						<option value="">All Projects</option>
+						{projects.map((p) => (
+							<option key={p.projectName} value={p.projectName}>
+								{p.projectName} ({p.sessionCount})
+							</option>
+						))}
+					</select>
+
 					<div className="search-box">
 						<svg
 							width="16"
@@ -107,11 +176,11 @@ export function SessionList({ onSelectSession }: SessionListProps) {
 							placeholder="Search sessions..."
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
-							onKeyDown={(e) => e.key === "Enter" && fetchData()}
+							onKeyDown={(e) => e.key === "Enter" && fetchSessions()}
 						/>
 						<span className="search-kbd">⌘K</span>
 					</div>
-					<button className="btn btn-primary" onClick={fetchData}>
+					<button className="btn btn-primary" onClick={handleRefresh}>
 						<svg
 							width="16"
 							height="16"
@@ -131,151 +200,153 @@ export function SessionList({ onSelectSession }: SessionListProps) {
 				</div>
 			</header>
 
-			<div className="main-content">
-				{/* Stats Grid */}
-				{stats && (
-					<div className="stats-grid">
-						<div className="stat-card">
-							<div className="stat-label">Total Sessions</div>
-							<div className="stat-value">{stats.totalSessions}</div>
-						</div>
-						<div className="stat-card">
-							<div className="stat-label">Avg Duration</div>
-							<div className="stat-value">
-								{formatDuration(stats.avgDurationMs)}
+			<div className="session-list-body">
+				<ProjectSidebar
+					projects={projects}
+					selectedProject={selectedProject}
+					onSelectProject={setSelectedProject}
+					loading={projectsLoading}
+				/>
+
+				<div className="main-content">
+					{/* Stats Grid */}
+					{stats && (
+						<div className="stats-grid">
+							<div className="stat-card">
+								<div className="stat-label">Total Sessions</div>
+								<div className="stat-value">{stats.totalSessions}</div>
 							</div>
-						</div>
-						<div className="stat-card">
-							<div className="stat-label">Total Tokens</div>
-							<div className="stat-value">
-								{formatTokens(
-									stats.totalTokens.input + stats.totalTokens.output,
-								)}
-							</div>
-						</div>
-						<div className="stat-card">
-							<div className="stat-label">Tool Calls</div>
-							<div className="stat-value">
-								{formatTokens(stats.totalToolCalls)}
-							</div>
-						</div>
-					</div>
-				)}
-
-				{/* Filter Chips */}
-				<div className="filter-chips">
-					{/* Date filters */}
-					<button
-						className={`filter-chip ${dateFilter === "all" ? "active" : ""}`}
-						onClick={() => setDateFilter("all")}
-					>
-						All Sessions
-					</button>
-					<button
-						className={`filter-chip ${dateFilter === "today" ? "active" : ""}`}
-						onClick={() => setDateFilter("today")}
-					>
-						Today
-					</button>
-					<button
-						className={`filter-chip ${dateFilter === "week" ? "active" : ""}`}
-						onClick={() => setDateFilter("week")}
-					>
-						This Week
-					</button>
-
-					<div className="filter-divider" />
-
-					{/* Tool filters */}
-					<button
-						className={`filter-chip ${toolFilters.has("Bash") ? "active" : ""}`}
-						onClick={() => toggleToolFilter("Bash")}
-					>
-						<span
-							className="chip-dot"
-							style={{ background: "var(--tool-bash)" }}
-						/>
-						Bash
-					</button>
-					<button
-						className={`filter-chip ${toolFilters.has("Task") ? "active" : ""}`}
-						onClick={() => toggleToolFilter("Task")}
-					>
-						<span
-							className="chip-dot"
-							style={{ background: "var(--tool-task)" }}
-						/>
-						Task (Sub-agent)
-					</button>
-					<button
-						className={`filter-chip ${toolFilters.has("Edit") ? "active" : ""}`}
-						onClick={() => toggleToolFilter("Edit")}
-					>
-						<span
-							className="chip-dot"
-							style={{ background: "var(--tool-edit)" }}
-						/>
-						Edit
-					</button>
-				</div>
-
-				{/* Sessions Table */}
-				<div className="sessions-table">
-					<div className="table-header">
-						<div>Session</div>
-						<div>Started</div>
-						<div>Duration</div>
-						<div>Tokens</div>
-						<div>Tools</div>
-						<div>Status</div>
-					</div>
-
-					{loading ? (
-						<div className="loading-state">Loading sessions...</div>
-					) : filteredSessions.length === 0 ? (
-						<div className="empty-state">
-							<p>No sessions yet</p>
-							<p className="text-secondary">
-								Sessions will appear here when Claude Code sends data via Stop
-								hooks
-							</p>
-						</div>
-					) : (
-						filteredSessions.map((session) => (
-							<div
-								key={session.id}
-								className="table-row"
-								onClick={() => onSelectSession(session.id)}
-							>
-								<div className="session-info">
-									<div className="session-project">{session.projectName}</div>
-									<div className="session-id">
-										{formatSessionId(session.id, "short")}
-									</div>
-								</div>
-								<div className="session-timestamp">
-									{formatDate(session.startedAt)}
-								</div>
-								<div className="session-duration">
-									{formatDuration(session.totalDurationMs)}
-								</div>
-								<div className="session-tokens">
-									{formatTokens(session.inputTokens + session.outputTokens)}
-								</div>
-								<div className="session-tools">{session.toolCallCount}</div>
-								<div>
-									<span className={`status-badge ${session.status}`}>
-										<span className="status-dot"></span>
-										{session.status === "completed"
-											? "Complete"
-											: session.status === "running"
-												? "Running"
-												: "Error"}
-									</span>
+							<div className="stat-card">
+								<div className="stat-label">Avg Duration</div>
+								<div className="stat-value">
+									{formatDuration(stats.avgDurationMs)}
 								</div>
 							</div>
-						))
+							<div className="stat-card">
+								<div className="stat-label">Total Tokens</div>
+								<div className="stat-value">
+									{formatTokens(
+										stats.totalTokens.input + stats.totalTokens.output,
+									)}
+								</div>
+							</div>
+							<div className="stat-card">
+								<div className="stat-label">Tool Calls</div>
+								<div className="stat-value">
+									{formatTokens(stats.totalToolCalls)}
+								</div>
+							</div>
+						</div>
 					)}
+
+					{/* Filter Chips */}
+					<div className="filter-chips">
+						{/* Date filters */}
+						<button
+							className={`filter-chip ${dateFilter === "all" ? "active" : ""}`}
+							onClick={() => setDateFilter("all")}
+						>
+							All Sessions
+						</button>
+						<button
+							className={`filter-chip ${dateFilter === "today" ? "active" : ""}`}
+							onClick={() => setDateFilter("today")}
+						>
+							Today
+						</button>
+						<button
+							className={`filter-chip ${dateFilter === "week" ? "active" : ""}`}
+							onClick={() => setDateFilter("week")}
+						>
+							This Week
+						</button>
+
+						<div className="filter-divider" />
+
+						{/* Tool filters */}
+						<button
+							className={`filter-chip ${toolFilters.has("Bash") ? "active" : ""}`}
+							onClick={() => toggleToolFilter("Bash")}
+						>
+							<span
+								className="chip-dot"
+								style={{ background: "var(--tool-bash)" }}
+							/>
+							Bash
+						</button>
+						<button
+							className={`filter-chip ${toolFilters.has("Task") ? "active" : ""}`}
+							onClick={() => toggleToolFilter("Task")}
+						>
+							<span
+								className="chip-dot"
+								style={{ background: "var(--tool-task)" }}
+							/>
+							Task (Sub-agent)
+						</button>
+						<button
+							className={`filter-chip ${toolFilters.has("Edit") ? "active" : ""}`}
+							onClick={() => toggleToolFilter("Edit")}
+						>
+							<span
+								className="chip-dot"
+								style={{ background: "var(--tool-edit)" }}
+							/>
+							Edit
+						</button>
+					</div>
+
+					{/* Sessions Table */}
+					<div className="sessions-table">
+						<div className="table-header">
+							<div>Session</div>
+							<div>Started</div>
+							<div>Duration</div>
+							<div>Tokens</div>
+							<div>Tools</div>
+						</div>
+
+						{loading ? (
+							<div className="loading-state">Loading sessions...</div>
+						) : filteredSessions.length === 0 ? (
+							<div className="empty-state">
+								<p>No sessions yet</p>
+								<p className="text-secondary">
+									Sessions will appear here when Claude Code sends data via Stop
+									hooks
+								</p>
+							</div>
+						) : (
+							filteredSessions.map((session) => (
+								<div
+									key={session.id}
+									className="table-row"
+									onClick={() => onSelectSession(session.id)}
+								>
+									<div className="session-info">
+										<div className="session-prompt">
+											{(session.firstPrompt &&
+												cleanPrompt(session.firstPrompt)) ||
+												session.projectName}
+										</div>
+										<div className="session-id">
+											{formatSessionId(session.id, "short")}
+										</div>
+									</div>
+									<div className="session-timestamp">
+										{formatDate(session.startedAt)}
+									</div>
+									<div className="session-duration">
+										{formatDuration(session.totalDurationMs)}
+									</div>
+									<div className="session-tokens">
+										{formatTokens(session.inputTokens + session.outputTokens)}
+									</div>
+									<div className="session-tools">{session.toolCallCount}</div>
+								</div>
+							))
+						)}
+					</div>
 				</div>
 			</div>
 
@@ -286,6 +357,12 @@ export function SessionList({ onSelectSession }: SessionListProps) {
           height: 100vh;
           width: 100%;
           background: var(--bg-primary);
+        }
+
+        .session-list-body {
+          display: flex;
+          flex: 1;
+          overflow: hidden;
         }
 
         .main-header {
@@ -346,6 +423,29 @@ export function SessionList({ onSelectSession }: SessionListProps) {
           background: var(--bg-hover);
           padding: 2px 6px;
           border-radius: 4px;
+        }
+
+        .mobile-project-select {
+          display: none;
+          padding: var(--space-sm) var(--space-md);
+          background: var(--bg-tertiary);
+          border: 1px solid var(--border-subtle);
+          border-radius: var(--radius-md);
+          color: var(--text-primary);
+          font-size: 13px;
+          font-family: inherit;
+          cursor: pointer;
+        }
+
+        .mobile-project-select:focus {
+          outline: none;
+          border-color: var(--accent-primary);
+        }
+
+        @media (max-width: 767px) {
+          .mobile-project-select {
+            display: block;
+          }
         }
 
         .btn {
@@ -422,7 +522,7 @@ export function SessionList({ onSelectSession }: SessionListProps) {
 
         .table-header {
           display: grid;
-          grid-template-columns: 1fr 140px 100px 80px 60px 100px;
+          grid-template-columns: 1fr 140px 100px 80px 60px;
           gap: var(--space-md);
           padding: var(--space-md) var(--space-lg);
           background: var(--bg-tertiary);
@@ -436,7 +536,7 @@ export function SessionList({ onSelectSession }: SessionListProps) {
 
         .table-row {
           display: grid;
-          grid-template-columns: 1fr 140px 100px 80px 60px 100px;
+          grid-template-columns: 1fr 140px 100px 80px 60px;
           gap: var(--space-md);
           padding: var(--space-md) var(--space-lg);
           border-bottom: 1px solid var(--border-subtle);
@@ -460,13 +560,14 @@ export function SessionList({ onSelectSession }: SessionListProps) {
           min-width: 0;
         }
 
-        .session-project {
+        .session-prompt {
           font-size: 14px;
-          font-weight: 600;
+          font-weight: 500;
           color: var(--text-primary);
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
+          max-width: 100%;
         }
 
         .session-id {

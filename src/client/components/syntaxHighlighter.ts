@@ -6,8 +6,6 @@
  * - Light version with selected languages: ~100KB
  */
 import { PrismLight as SyntaxHighlighter } from "react-syntax-highlighter";
-import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
-
 // 자주 사용하는 언어만 등록
 import bash from "react-syntax-highlighter/dist/esm/languages/prism/bash";
 import css from "react-syntax-highlighter/dist/esm/languages/prism/css";
@@ -20,6 +18,7 @@ import python from "react-syntax-highlighter/dist/esm/languages/prism/python";
 import tsx from "react-syntax-highlighter/dist/esm/languages/prism/tsx";
 import typescript from "react-syntax-highlighter/dist/esm/languages/prism/typescript";
 import yaml from "react-syntax-highlighter/dist/esm/languages/prism/yaml";
+import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 // 언어 등록
 SyntaxHighlighter.registerLanguage("bash", bash);

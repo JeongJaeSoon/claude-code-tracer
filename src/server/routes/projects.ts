@@ -1,7 +1,7 @@
-import { and, desc, eq, gte, like, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, like, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { db } from "../db/client.ts";
-import { sessions } from "../db/schema.ts";
+import { messages, sessions } from "../db/schema.ts";
 
 const app = new Hono();
 
@@ -120,8 +120,41 @@ app.get("/:projectName/sessions", async (c) => {
 			.from(sessions)
 			.where(eq(sessions.projectName, projectName));
 
+		// Get first user message for each session
+		const sessionIds = projectSessions.map((s) => s.id);
+		let firstPrompts: Record<string, string> = {};
+
+		if (sessionIds.length > 0) {
+			const firstMessages = await db
+				.select({
+					sessionId: messages.sessionId,
+					content: messages.content,
+				})
+				.from(messages)
+				.where(
+					and(
+						inArray(messages.sessionId, sessionIds),
+						eq(messages.type, "user"),
+						sql`(${messages.parentUuid} IS NULL OR ${messages.parentUuid} = '')`,
+						sql`${messages.content} != 'Warmup'`,
+					),
+				)
+				.orderBy(messages.timestamp);
+
+			for (const msg of firstMessages) {
+				if (!firstPrompts[msg.sessionId] && msg.content) {
+					firstPrompts[msg.sessionId] = msg.content;
+				}
+			}
+		}
+
+		const sessionsWithPrompt = projectSessions.map((s) => ({
+			...s,
+			firstPrompt: firstPrompts[s.id] || null,
+		}));
+
 		return c.json({
-			sessions: projectSessions,
+			sessions: sessionsWithPrompt,
 			total: totalResult[0]?.count || 0,
 			limit,
 			offset,

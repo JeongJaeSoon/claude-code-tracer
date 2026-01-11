@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { CopyButton } from "./CopyButton.tsx";
-import { SyntaxHighlighter, vscDarkPlus } from "./syntaxHighlighter.ts";
 import { MarkdownRenderer } from "./MarkdownRenderer.tsx";
+import { SyntaxHighlighter, vscDarkPlus } from "./syntaxHighlighter.ts";
 
 type ContentType = "json" | "markdown" | "code" | "cli" | "plain";
 
