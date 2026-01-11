@@ -1,7 +1,6 @@
 import { useMemo } from "react";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { CopyButton } from "./CopyButton.tsx";
+import { SyntaxHighlighter, vscDarkPlus } from "./syntaxHighlighter.ts";
 import { MarkdownRenderer } from "./MarkdownRenderer.tsx";
 
 type ContentType = "json" | "markdown" | "code" | "cli" | "plain";
