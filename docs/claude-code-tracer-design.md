@@ -350,9 +350,9 @@ function toFlamegraph(messages: SessionMessage[]): FlameNode {
 
 ---
 
-## 8. Flamegraph 라이브러리 비교
+## 8. 시각화 컴포넌트 선택
 
-### 후보 라이브러리
+### 초기 계획: Flamegraph (flame-chart-js)
 
 | 라이브러리 | 타입 | React 지원 | 유지보수 | 성능 | 추천도 |
 |-----------|------|-----------|---------|------|--------|
@@ -361,37 +361,39 @@ function toFlamegraph(messages: SessionMessage[]): FlameNode {
 | [react-flame-graph](https://github.com/bvaughn/react-flame-graph) | React | ✅ | ❌ 방치 | 보통 | ⭐⭐ |
 | [speedscope](https://github.com/jlfwong/speedscope) | 독립 앱 | ❌ | ✅ | 우수 | ⭐⭐ (뷰어용) |
 
-### 선정: flame-chart-js
+### 최종 선택: TraceTree (커스텀 컴포넌트)
 
-**선정 이유:**
-- React 컴포넌트 네이티브 지원 (`FlameChartComponent`)
-- Canvas 기반 60fps 고성능 렌더링
-- Timeline + Flamegraph 동시 지원
-- 활발한 유지보수 (2025년 현재)
-- 플러그인 시스템으로 확장 가능
+**초기 계획:** flame-chart-js 사용
+**최종 결정:** 커스텀 TraceTree 컴포넌트
 
-**데이터 포맷:**
-```typescript
-interface FlameChartNode {
-  name: string;
-  start: number;      // 시작 시간 (ms)
-  duration: number;   // 실행 시간 (ms)
-  type?: string;      // 노드 타입 (색상 구분용)
-  color?: string;     // 커스텀 색상
-  children?: FlameChartNode[];
-}
+**변경 이유:**
+- Flamegraph는 CPU 프로파일링에 최적화된 형태로, 호출 스택 깊이 시각화에 적합
+- Claude Code의 Turn 기반 대화 흐름에는 TraceTree가 더 적합
+- Lane 구조로 Main과 Sub-agent를 명확히 분리 표시 가능
+- Step 단위로 도구 호출을 시각화 (duration 바 포함)
+
+**TraceTree 구조:**
+```
+Lane (Main 에이전트)
+├── Turn 1 (사용자 프롬프트 → 어시스턴트 응답)
+│   ├── Step: Bash (120ms)
+│   ├── Step: Read (45ms)
+│   └── Step: Edit (230ms)
+└── Turn 2
+    └── ...
+
+Lane (Sub-agent: agent-abc)
+├── Turn 1
+│   ├── Step: Grep (80ms)
+│   └── Step: Read (30ms)
+└── ...
 ```
 
-**React 사용 예시:**
-```tsx
-import { FlameChartComponent } from 'flame-chart-js/react';
-
-<FlameChartComponent
-  data={flameData}
-  settings={{ styles: { main: { blockHeight: 18 } } }}
-  onSelect={(node) => console.log('Selected:', node)}
-/>
-```
+**장점:**
+- Turn 단위로 대화 흐름 파악 용이
+- Sub-agent가 별도 Lane으로 명확히 구분됨
+- Duration 바로 실행 시간 직관적 확인
+- 펼침/접음으로 복잡한 세션도 쉽게 탐색
 
 ---
 
@@ -618,8 +620,7 @@ claude-code-tracer/
 │   │   │   ├── ingest.ts      # POST /ingest, /ingest/file (Hook 데이터 수신)
 │   │   │   ├── sessions.ts    # GET /sessions, /sessions/:id, /sessions/stats
 │   │   │   ├── projects.ts    # GET /projects, /projects/:name/sessions
-│   │   │   ├── timeline.ts    # GET /timeline/:sessionId (Turn 기반 뷰)
-│   │   │   └── flamegraph.ts  # GET /flamegraph/:sessionId
+│   │   │   └── timeline.ts    # GET /timeline/:sessionId (Turn 기반 뷰)
 │   │   ├── db/
 │   │   │   ├── schema.ts      # drizzle 스키마 (sessions, toolCalls, messages)
 │   │   │   └── client.ts      # DB 연결 및 초기화
@@ -635,18 +636,28 @@ claude-code-tracer/
 │       │   ├── SessionList.tsx    # 세션 목록 (대체 뷰)
 │       │   └── SessionDetail.tsx  # 세션 상세 + Timeline
 │       ├── components/
-│       │   ├── Sidebar.tsx        # 네비게이션 + 테마 토글
-│       │   ├── TraceTree.tsx      # Turn 기반 트레이스 트리
-│       │   └── DetailPanel.tsx    # 선택 항목 상세 정보
+│       │   ├── Sidebar.tsx            # 네비게이션 + 테마 토글
+│       │   ├── TraceTree.tsx          # Turn 기반 트레이스 트리 (핵심)
+│       │   ├── DetailPanel.tsx        # 선택 항목 상세 정보
+│       │   ├── CompactTimeline.tsx    # 타임라인 시각화
+│       │   ├── FilterBar.tsx          # 검색/필터 UI
+│       │   ├── SmartContentRenderer.tsx # 콘텐츠 렌더링
+│       │   └── MarkdownRenderer.tsx   # 마크다운 + 코드 하이라이팅
 │       ├── types/
 │       │   └── timeline.ts        # Timeline 데이터 타입
 │       ├── constants/
 │       │   └── tools.ts           # 도구 아이콘/색상 매핑
+│       ├── utils/
+│       │   └── format.ts          # 포맷팅 유틸리티
 │       └── styles/
 │           └── global.css         # 전역 스타일 + 테마 변수
 │
 ├── hooks/                     # Claude Code Hook
 │   └── stop_hook.sh           # Stop Hook → /api/ingest/file
+│
+├── docs/                      # 문서
+│   ├── claude-code-tracer-design.md  # 설계 문서
+│   └── archive/mockups/       # 초기 UI 목업 (아카이브)
 │
 ├── data/                      # SQLite 데이터 (gitignore)
 │   └── tracer.db
@@ -673,7 +684,7 @@ claude-code-tracer/
 ## 13. 다음 단계
 
 ### Phase 1: MVP ✅ (완료)
-1. [x] Flamegraph 라이브러리 선정 → **flame-chart-js**
+1. [x] 시각화 방식 선정 → **TraceTree (커스텀 컴포넌트)**
 2. [x] 기술 스택 확정 → **Bun + Hono + React + drizzle**
 3. [x] 프로젝트 초기 설정 (`bun create`)
 4. [x] JSONL 파서 구현 (`src/server/services/parser.ts`)
@@ -695,12 +706,12 @@ claude-code-tracer/
 - [x] Dark/Light 테마 지원
 - [x] Sub-agent Lane 시각화
 
-### Phase 1.5: 품질 개선 (현재)
-- [ ] **Flamegraph 컴포넌트 구현** (flame-chart-js 통합)
-- [ ] 검색/필터 기능 구현 (UI 존재, 기능 미구현)
-- [ ] 에러 핸들링 강화 (모든 라우트에 try-catch)
-- [ ] 입력 검증 (pagination 범위, UUID 형식)
-- [ ] Ingest API 보안 (path traversal 방지)
+### Phase 1.5: 품질 개선 ✅ (완료 - 2026-01-11)
+- [x] TraceTree 컴포넌트 구현 (초기 계획 Flamegraph → TraceTree로 변경)
+- [x] 검색/필터 기능 구현 (FilterBar 컴포넌트)
+- [x] 에러 핸들링 강화 (모든 라우트에 try-catch)
+- [x] Ingest API 보안 (path traversal 방지)
+- [ ] 입력 검증 강화 (pagination 범위, UUID 형식) - 선택적
 
 ### Phase 2: 개선
 - [ ] 비용 계산 기능 (모델별 토큰 단가 적용)
@@ -724,11 +735,15 @@ claude-code-tracer/
 - [LangSmith Claude Code Tracing](https://docs.langchain.com/langsmith/trace-claude-code)
 
 ### 라이브러리
-- [flame-chart-js](https://github.com/pyatyispyatil/flame-chart-js) - 선정된 Flamegraph 라이브러리
-- [d3-flame-graph](https://github.com/spiermar/d3-flame-graph) - 대안 (D3 기반)
-- [speedscope](https://github.com/jlfwong/speedscope) - 독립 프로파일 뷰어
 - [Hono](https://hono.dev/) - 웹 프레임워크
 - [drizzle-orm](https://orm.drizzle.team/) - TypeScript ORM
+- [react-markdown](https://github.com/remarkjs/react-markdown) - 마크다운 렌더링
+- [react-syntax-highlighter](https://github.com/react-syntax-highlighter/react-syntax-highlighter) - 코드 하이라이팅
+
+### 시각화 라이브러리 (초기 검토, 미사용)
+- [flame-chart-js](https://github.com/pyatyispyatil/flame-chart-js) - 초기 검토 후 TraceTree로 대체
+- [d3-flame-graph](https://github.com/spiermar/d3-flame-graph) - D3 기반 대안
+- [speedscope](https://github.com/jlfwong/speedscope) - 독립 프로파일 뷰어
 
 ### 인증 (Phase 3)
 - [OAuth2-proxy](https://oauth2-proxy.github.io/oauth2-proxy/)
@@ -736,35 +751,37 @@ claude-code-tracer/
 
 ---
 
-## 14. 현재 구현 상태 (2026-01-10 기준)
+## 14. 현재 구현 상태 (2026-01-11 기준)
 
 ### 구현 완료 항목
 
 #### Backend API
-| 엔드포인트 | 설명 | 상태 |
-|-----------|------|------|
-| `POST /api/ingest` | JSONL 텍스트 직접 수신 | ✅ |
-| `POST /api/ingest/file` | 파일 경로로 JSONL 읽기 (Sub-agent 자동 처리) | ✅ |
-| `GET /api/sessions` | 세션 목록 (페이지네이션) | ✅ |
-| `GET /api/sessions/stats` | 세션 통계 집계 | ✅ |
-| `GET /api/sessions/:id` | 세션 상세 | ✅ |
-| `DELETE /api/sessions/:id` | 세션 삭제 | ✅ |
-| `GET /api/projects` | 프로젝트별 세션 그룹핑 | ✅ |
-| `GET /api/projects/stats` | 프로젝트 통계 | ✅ |
-| `GET /api/projects/:name/sessions` | 프로젝트별 세션 목록 | ✅ |
-| `GET /api/timeline/:sessionId` | Turn 기반 Timeline 데이터 | ✅ |
-| `GET /api/flamegraph/:sessionId` | Flamegraph 트리 데이터 | ✅ |
-| `GET /api/health` | 서버 상태 | ✅ |
+| 엔드포인트 | 설명 | 필터 파라미터 | 상태 |
+|-----------|------|--------------|------|
+| `POST /api/ingest` | JSONL 텍스트 직접 수신 | - | ✅ |
+| `POST /api/ingest/file` | 파일 경로로 JSONL 읽기 | Sub-agent 자동 탐색 | ✅ |
+| `GET /api/sessions` | 세션 목록 | search, status, dateRange, tool, duration, tokens | ✅ |
+| `GET /api/sessions/stats` | 세션 통계 집계 | - | ✅ |
+| `GET /api/sessions/:id` | 세션 상세 | - | ✅ |
+| `DELETE /api/sessions/:id` | 세션 삭제 | - | ✅ |
+| `GET /api/projects` | 프로젝트별 세션 그룹핑 | search, dateRange | ✅ |
+| `GET /api/projects/stats` | 프로젝트 통계 | - | ✅ |
+| `GET /api/projects/:name/sessions` | 프로젝트별 세션 목록 | 페이지네이션 | ✅ |
+| `GET /api/timeline/:sessionId` | Turn 기반 Timeline 데이터 | Lane 분리 | ✅ |
+| `GET /api/health` | 서버 상태 | - | ✅ |
 
 #### Frontend 컴포넌트
-| 컴포넌트 | 설명 | 상태 |
-|---------|------|------|
-| `ProjectList` | 프로젝트별 세션 그룹핑 (메인 페이지) | ✅ |
-| `SessionDetail` | 세션 상세 + Timeline | ✅ |
-| `TraceTree` | Turn 기반 트레이스 트리 | ✅ |
-| `DetailPanel` | 선택 항목 상세 (탭: Run/Input/Output/Metadata) | ✅ |
-| `Sidebar` | 네비게이션 + 테마 토글 | ✅ |
-| `Flamegraph` | flame-chart-js 통합 | ❌ 미구현 |
+| 컴포넌트 | 설명 | 라인 수 | 상태 |
+|---------|------|--------|------|
+| `ProjectList` | 프로젝트별 세션 그룹핑 (메인 페이지) | ~700 | ✅ |
+| `SessionDetail` | 세션 상세 + Timeline | ~480 | ✅ |
+| `TraceTree` | Turn 기반 트레이스 트리 (핵심 시각화) | ~810 | ✅ |
+| `DetailPanel` | 선택 항목 상세 (Run/Input/Output/Metadata 탭) | ~760 | ✅ |
+| `CompactTimeline` | 타임라인 시각화 | ~850 | ✅ |
+| `FilterBar` | 검색/필터 UI | ~310 | ✅ |
+| `Sidebar` | 네비게이션 + 테마 토글 | ~280 | ✅ |
+| `SmartContentRenderer` | 콘텐츠 렌더링 | ~250 | ✅ |
+| `MarkdownRenderer` | 마크다운 + 코드 하이라이팅 | ~300 | ✅ |
 
 #### JSONL 파서
 | 기능 | 상태 |
@@ -776,43 +793,28 @@ claude-code-tracer/
 | Sub-agent 파일 자동 탐색 | ✅ |
 | 토큰 집계 (input, output, cache) | ✅ |
 
-### 개선 필요 항목
+### 제거된 항목 (2026-01-11)
 
-#### 우선순위 높음 (P0)
-1. **Flamegraph 컴포넌트 구현**
-   - flame-chart-js가 설치되어 있으나 실제 사용되지 않음
-   - TraceTree가 대체 역할을 하고 있으나, Flamegraph 시각화는 프로젝트 핵심 기능
+| 항목 | 파일/패키지 | 제거 이유 |
+|------|------------|----------|
+| Flamegraph API | `flamegraph.ts` | TraceTree로 대체, 미사용 |
+| flame-chart-js | npm 의존성 | 코드에서 미사용 |
 
-#### 우선순위 중간 (P1)
-2. **검색/필터 기능**
-   - UI에 검색 박스가 있으나 기능 미구현
-   - 프로젝트명, 세션ID, 도구명, 날짜 범위 필터링 필요
+### 선택적 개선 항목
 
-3. **에러 핸들링 강화**
-   - `sessions.ts`, `projects.ts`에 try-catch 없음
-   - 통일된 에러 응답 포맷 필요
-
-4. **입력 검증**
-   - pagination 파라미터 범위 검증 없음
-   - `ingest/file`의 path traversal 취약점 (보안)
-
-#### 우선순위 낮음 (P2)
-5. **API 응답 형식 일관성**
-   - 일부 엔드포인트 응답 래핑 불일치
-
-6. **성능 최적화**
-   - Ingest에서 개별 insert → batch insert 전환
-   - TraceTree virtual scrolling (대량 Turn 시)
-
-7. **접근성**
-   - ARIA 속성 추가
-   - 키보드 네비게이션
+| 우선순위 | 항목 | 설명 |
+|---------|------|------|
+| P1 | 입력 검증 강화 | pagination 범위, UUID 형식 검증 |
+| P2 | Batch insert | Ingest 성능 최적화 |
+| P2 | Virtual scrolling | TraceTree 대량 Turn 시 성능 |
+| P3 | ARIA 접근성 | 키보드 네비게이션 |
 
 ### 아키텍처 결정 사항
 
-| 항목 | 설계 문서 | 실제 구현 | 비고 |
-|------|----------|----------|------|
-| 시각화 방식 | Flamegraph | TraceTree (Turn 기반) | 더 직관적인 UX 제공 |
+| 항목 | 초기 설계 | 최종 구현 | 변경 이유 |
+|------|----------|----------|----------|
+| 시각화 방식 | Flamegraph | TraceTree | Turn 기반 UX가 더 직관적 |
+| 라이브러리 | flame-chart-js | 커스텀 React | 프로젝트 요구사항에 맞춤 |
 | 데이터 구조 | UUID 트리 | Lane → Turn → Step | Sub-agent 분리 표시 |
 | DB | SQLite | SQLite | 계획대로 |
 | ORM | drizzle-orm | drizzle-orm | 계획대로 |
@@ -824,31 +826,36 @@ src/
 ├── server/
 │   ├── index.ts              # Hono 서버 엔트리
 │   ├── routes/
-│   │   ├── ingest.ts         # 167 lines
-│   │   ├── sessions.ts       # 107 lines
-│   │   ├── projects.ts       # 96 lines
-│   │   ├── timeline.ts       # 380 lines
-│   │   └── flamegraph.ts     # 150 lines
+│   │   ├── ingest.ts         # ~236 lines
+│   │   ├── sessions.ts       # ~248 lines
+│   │   ├── projects.ts       # ~182 lines
+│   │   └── timeline.ts       # ~380 lines
 │   ├── db/
-│   │   ├── schema.ts         # 62 lines
-│   │   └── client.ts         # 75 lines
+│   │   ├── schema.ts         # ~71 lines
+│   │   └── client.ts         # ~75 lines
 │   └── services/
-│       └── parser.ts         # 230 lines
+│       └── parser.ts         # ~260 lines
 │
 └── client/
     ├── App.tsx               # 라우터 + 테마
     ├── pages/
-    │   ├── ProjectList.tsx   # 649 lines
-    │   ├── SessionList.tsx   # 432 lines (미사용)
-    │   └── SessionDetail.tsx # 382 lines
+    │   ├── ProjectList.tsx   # ~708 lines
+    │   ├── SessionList.tsx   # ~599 lines
+    │   └── SessionDetail.tsx # ~474 lines
     ├── components/
-    │   ├── Sidebar.tsx       # 232 lines
-    │   ├── TraceTree.tsx     # 747 lines
-    │   └── DetailPanel.tsx   # 917 lines
+    │   ├── Sidebar.tsx           # ~280 lines
+    │   ├── TraceTree.tsx         # ~814 lines (핵심)
+    │   ├── DetailPanel.tsx       # ~765 lines
+    │   ├── CompactTimeline.tsx   # ~853 lines
+    │   ├── FilterBar.tsx         # ~314 lines
+    │   ├── SmartContentRenderer.tsx # ~253 lines
+    │   └── MarkdownRenderer.tsx  # ~301 lines
     ├── types/
     │   └── timeline.ts       # 타입 정의
     ├── constants/
     │   └── tools.ts          # 도구 아이콘/색상
+    ├── utils/
+    │   └── format.ts         # 포맷팅 유틸
     └── styles/
         └── global.css        # 전역 스타일
 ```

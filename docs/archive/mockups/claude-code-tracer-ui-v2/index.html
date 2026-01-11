@@ -1817,7 +1817,7 @@
     }
 
     // Handle back/forward navigation
-    window.onpopstate = function(event) {
+    window.onpopstate = (event) => {
       if (event.state && event.state.page) {
         document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
         document.getElementById('page-' + event.state.page).classList.add('active');
