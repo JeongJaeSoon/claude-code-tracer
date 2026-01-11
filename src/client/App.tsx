@@ -116,10 +116,7 @@ export function App() {
 					/>
 				)}
 				{router.page === "session" && router.sessionId && (
-					<SessionDetail
-						sessionId={router.sessionId}
-						onBack={() => navigate("sessions")}
-					/>
+					<SessionDetail sessionId={router.sessionId} />
 				)}
 			</div>
 
