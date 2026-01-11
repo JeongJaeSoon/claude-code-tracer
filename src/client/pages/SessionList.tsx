@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { type URLFilterState, updateFilters } from "../App.tsx";
 import { type Project, ProjectSidebar } from "../components/ProjectSidebar.tsx";
 import type { Session } from "../types/timeline.ts";
 import {
@@ -11,7 +12,7 @@ import {
 // Clean up prompt text for display
 function cleanPrompt(text: string): string | null {
 	// Strip XML/HTML-like tags
-	let cleaned = text.replace(/<[^>]+>/g, "").trim();
+	const cleaned = text.replace(/<[^>]+>/g, "").trim();
 
 	// Skip system messages that aren't real prompts
 	if (
@@ -33,24 +34,68 @@ interface Stats {
 }
 
 type DateFilter = "all" | "today" | "week";
-type ToolFilter = "Bash" | "Read" | "Edit" | "Task";
 
 interface SessionListProps {
 	onSelectSession: (sessionId: string) => void;
+	initialFilters: URLFilterState;
 }
 
-export function SessionList({ onSelectSession }: SessionListProps) {
+export function SessionList({
+	onSelectSession,
+	initialFilters,
+}: SessionListProps) {
 	const [sessions, setSessions] = useState<Session[]>([]);
 	const [stats, setStats] = useState<Stats | null>(null);
 	const [loading, setLoading] = useState(true);
-	const [dateFilter, setDateFilter] = useState<DateFilter>("all");
-	const [toolFilters, setToolFilters] = useState<Set<ToolFilter>>(new Set());
-	const [searchQuery, setSearchQuery] = useState("");
+	const [dateFilter, setDateFilter] = useState<DateFilter>(
+		initialFilters.dateRange,
+	);
+	const [searchQuery, setSearchQuery] = useState(initialFilters.search);
 
 	// Project state
 	const [projects, setProjects] = useState<Project[]>([]);
 	const [projectsLoading, setProjectsLoading] = useState(true);
-	const [selectedProject, setSelectedProject] = useState<string | null>(null);
+	const [selectedProject, setSelectedProject] = useState<string | null>(
+		initialFilters.project,
+	);
+
+	// Sync state changes to URL
+	const syncToURL = useCallback(
+		(project: string | null, date: DateFilter, search: string) => {
+			updateFilters({
+				project,
+				dateRange: date,
+				search,
+			});
+		},
+		[],
+	);
+
+	// Wrapper functions to update state and URL together
+	const handleProjectChange = useCallback(
+		(project: string | null) => {
+			setSelectedProject(project);
+			syncToURL(project, dateFilter, searchQuery);
+		},
+		[dateFilter, searchQuery, syncToURL],
+	);
+
+	const handleDateFilterChange = useCallback(
+		(date: DateFilter) => {
+			setDateFilter(date);
+			syncToURL(selectedProject, date, searchQuery);
+		},
+		[selectedProject, searchQuery, syncToURL],
+	);
+
+	const handleSearchChange = useCallback((search: string) => {
+		setSearchQuery(search);
+	}, []);
+
+	const handleSearchSubmit = useCallback(() => {
+		syncToURL(selectedProject, dateFilter, searchQuery);
+		fetchSessions();
+	}, [selectedProject, dateFilter, searchQuery, syncToURL]);
 
 	// Fetch projects on mount
 	useEffect(() => {
@@ -113,23 +158,6 @@ export function SessionList({ onSelectSession }: SessionListProps) {
 		fetchSessions();
 	}
 
-	function toggleToolFilter(tool: ToolFilter) {
-		const newFilters = new Set(toolFilters);
-		if (newFilters.has(tool)) {
-			newFilters.delete(tool);
-		} else {
-			newFilters.add(tool);
-		}
-		setToolFilters(newFilters);
-	}
-
-	// Filter sessions by tool types (client-side for now)
-	const filteredSessions = sessions.filter((session) => {
-		if (toolFilters.size === 0) return true;
-		// TODO: When toolTypes is available from API, use it
-		return true;
-	});
-
 	return (
 		<div className="session-list-page">
 			<header className="main-header">
@@ -145,7 +173,7 @@ export function SessionList({ onSelectSession }: SessionListProps) {
 						className="mobile-project-select"
 						value={selectedProject ?? ""}
 						onChange={(e) =>
-							setSelectedProject(e.target.value === "" ? null : e.target.value)
+							handleProjectChange(e.target.value === "" ? null : e.target.value)
 						}
 					>
 						<option value="">All Projects</option>
@@ -175,8 +203,8 @@ export function SessionList({ onSelectSession }: SessionListProps) {
 							type="text"
 							placeholder="Search sessions..."
 							value={searchQuery}
-							onChange={(e) => setSearchQuery(e.target.value)}
-							onKeyDown={(e) => e.key === "Enter" && fetchSessions()}
+							onChange={(e) => handleSearchChange(e.target.value)}
+							onKeyDown={(e) => e.key === "Enter" && handleSearchSubmit()}
 						/>
 						<span className="search-kbd">⌘K</span>
 					</div>
@@ -204,7 +232,7 @@ export function SessionList({ onSelectSession }: SessionListProps) {
 				<ProjectSidebar
 					projects={projects}
 					selectedProject={selectedProject}
-					onSelectProject={setSelectedProject}
+					onSelectProject={handleProjectChange}
 					loading={projectsLoading}
 				/>
 
@@ -244,55 +272,21 @@ export function SessionList({ onSelectSession }: SessionListProps) {
 						{/* Date filters */}
 						<button
 							className={`filter-chip ${dateFilter === "all" ? "active" : ""}`}
-							onClick={() => setDateFilter("all")}
+							onClick={() => handleDateFilterChange("all")}
 						>
 							All Sessions
 						</button>
 						<button
 							className={`filter-chip ${dateFilter === "today" ? "active" : ""}`}
-							onClick={() => setDateFilter("today")}
+							onClick={() => handleDateFilterChange("today")}
 						>
 							Today
 						</button>
 						<button
 							className={`filter-chip ${dateFilter === "week" ? "active" : ""}`}
-							onClick={() => setDateFilter("week")}
+							onClick={() => handleDateFilterChange("week")}
 						>
 							This Week
-						</button>
-
-						<div className="filter-divider" />
-
-						{/* Tool filters */}
-						<button
-							className={`filter-chip ${toolFilters.has("Bash") ? "active" : ""}`}
-							onClick={() => toggleToolFilter("Bash")}
-						>
-							<span
-								className="chip-dot"
-								style={{ background: "var(--tool-bash)" }}
-							/>
-							Bash
-						</button>
-						<button
-							className={`filter-chip ${toolFilters.has("Task") ? "active" : ""}`}
-							onClick={() => toggleToolFilter("Task")}
-						>
-							<span
-								className="chip-dot"
-								style={{ background: "var(--tool-task)" }}
-							/>
-							Task (Sub-agent)
-						</button>
-						<button
-							className={`filter-chip ${toolFilters.has("Edit") ? "active" : ""}`}
-							onClick={() => toggleToolFilter("Edit")}
-						>
-							<span
-								className="chip-dot"
-								style={{ background: "var(--tool-edit)" }}
-							/>
-							Edit
 						</button>
 					</div>
 
@@ -308,7 +302,7 @@ export function SessionList({ onSelectSession }: SessionListProps) {
 
 						{loading ? (
 							<div className="loading-state">Loading sessions...</div>
-						) : filteredSessions.length === 0 ? (
+						) : sessions.length === 0 ? (
 							<div className="empty-state">
 								<p>No sessions yet</p>
 								<p className="text-secondary">
@@ -317,7 +311,7 @@ export function SessionList({ onSelectSession }: SessionListProps) {
 								</p>
 							</div>
 						) : (
-							filteredSessions.map((session) => (
+							sessions.map((session) => (
 								<div
 									key={session.id}
 									className="table-row"
@@ -342,7 +336,21 @@ export function SessionList({ onSelectSession }: SessionListProps) {
 									<div className="session-tokens">
 										{formatTokens(session.inputTokens + session.outputTokens)}
 									</div>
-									<div className="session-tools">{session.toolCallCount}</div>
+									<div className="session-tools">
+										<div className="tools-dots">
+											{(session.toolTypes || []).slice(0, 5).map((tool) => (
+												<div
+													key={tool}
+													className="tool-dot"
+													style={{
+														background: `var(--tool-${tool.toLowerCase()}, var(--text-muted))`,
+													}}
+													title={tool}
+												/>
+											))}
+										</div>
+										<span className="tools-count">{session.toolCallCount}</span>
+									</div>
 								</div>
 							))
 						)}
@@ -522,7 +530,7 @@ export function SessionList({ onSelectSession }: SessionListProps) {
 
         .table-header {
           display: grid;
-          grid-template-columns: 1fr 140px 100px 80px 60px;
+          grid-template-columns: 1fr 140px 100px 80px 100px;
           gap: var(--space-md);
           padding: var(--space-md) var(--space-lg);
           background: var(--bg-tertiary);
@@ -536,7 +544,7 @@ export function SessionList({ onSelectSession }: SessionListProps) {
 
         .table-row {
           display: grid;
-          grid-template-columns: 1fr 140px 100px 80px 60px;
+          grid-template-columns: 1fr 140px 100px 80px 100px;
           gap: var(--space-md);
           padding: var(--space-md) var(--space-lg);
           border-bottom: 1px solid var(--border-subtle);
@@ -595,9 +603,28 @@ export function SessionList({ onSelectSession }: SessionListProps) {
         }
 
         .session-tools {
+          display: flex;
+          align-items: center;
+          gap: var(--space-sm);
+        }
+
+        .tools-dots {
+          display: flex;
+          align-items: center;
+          gap: 3px;
+        }
+
+        .tool-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          flex-shrink: 0;
+        }
+
+        .tools-count {
           font-family: var(--font-mono);
-          font-size: 12px;
-          color: var(--text-secondary);
+          font-size: 11px;
+          color: var(--text-muted);
         }
 
         .status-badge {

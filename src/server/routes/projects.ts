@@ -1,7 +1,7 @@
 import { and, desc, eq, gte, inArray, like, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { db } from "../db/client.ts";
-import { messages, sessions } from "../db/schema.ts";
+import { messages, sessions, toolCalls } from "../db/schema.ts";
 
 const app = new Hono();
 
@@ -122,7 +122,8 @@ app.get("/:projectName/sessions", async (c) => {
 
 		// Get first user message for each session
 		const sessionIds = projectSessions.map((s) => s.id);
-		let firstPrompts: Record<string, string> = {};
+		const firstPrompts: Record<string, string> = {};
+		const sessionToolTypes: Record<string, string[]> = {};
 
 		if (sessionIds.length > 0) {
 			const firstMessages = await db
@@ -146,11 +147,31 @@ app.get("/:projectName/sessions", async (c) => {
 					firstPrompts[msg.sessionId] = msg.content;
 				}
 			}
+
+			// Fetch tool types per session
+			const toolTypesResult = await db
+				.select({
+					sessionId: toolCalls.sessionId,
+					toolName: toolCalls.toolName,
+				})
+				.from(toolCalls)
+				.where(inArray(toolCalls.sessionId, sessionIds))
+				.groupBy(toolCalls.sessionId, toolCalls.toolName);
+
+			for (const row of toolTypesResult) {
+				if (!sessionToolTypes[row.sessionId]) {
+					sessionToolTypes[row.sessionId] = [];
+				}
+				if (!sessionToolTypes[row.sessionId].includes(row.toolName)) {
+					sessionToolTypes[row.sessionId].push(row.toolName);
+				}
+			}
 		}
 
 		const sessionsWithPrompt = projectSessions.map((s) => ({
 			...s,
 			firstPrompt: firstPrompts[s.id] || null,
+			toolTypes: sessionToolTypes[s.id] || [],
 		}));
 
 		return c.json({

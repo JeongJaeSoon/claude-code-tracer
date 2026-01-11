@@ -22,25 +22,62 @@ export function useTheme() {
 // Router state - hash-based routing
 type Page = "sessions" | "session";
 
+// Filter state from URL
+export interface URLFilterState {
+	project: string | null;
+	dateRange: "all" | "today" | "week";
+	search: string;
+}
+
 interface RouterState {
 	page: Page;
 	sessionId?: string;
+	filters: URLFilterState;
 }
 
-// Parse hash into route state
+// Parse hash into route state (supports query params: #sessions?project=xxx&date=today)
 function parseHash(hash: string): RouterState {
-	const path = hash.startsWith("#") ? hash.slice(1) : hash;
+	const rawPath = hash.startsWith("#") ? hash.slice(1) : hash;
+	const [path, queryString] = rawPath.split("?");
+
+	// Parse query params
+	const params = new URLSearchParams(queryString || "");
+	const filters: URLFilterState = {
+		project: params.get("project"),
+		dateRange: (params.get("date") as URLFilterState["dateRange"]) || "all",
+		search: params.get("search") || "",
+	};
 
 	// #session/{id} -> session detail
 	if (path.startsWith("session/")) {
 		const sessionId = path.slice(8); // "session/".length = 8
 		if (sessionId) {
-			return { page: "session", sessionId };
+			return { page: "session", sessionId, filters };
 		}
 	}
 
 	// Default: sessions list
-	return { page: "sessions" };
+	return { page: "sessions", filters };
+}
+
+// Build URL with filters
+export function buildSessionsURL(filters: Partial<URLFilterState>): string {
+	const params = new URLSearchParams();
+	if (filters.project) params.set("project", filters.project);
+	if (filters.dateRange && filters.dateRange !== "all")
+		params.set("date", filters.dateRange);
+	if (filters.search) params.set("search", filters.search);
+
+	const queryString = params.toString();
+	return queryString ? `sessions?${queryString}` : "sessions";
+}
+
+// Update URL without adding to history (for filter changes)
+export function updateFilters(filters: Partial<URLFilterState>) {
+	const newHash = buildSessionsURL(filters);
+	window.history.replaceState(null, "", `#${newHash}`);
+	// Dispatch custom event for components to react
+	window.dispatchEvent(new CustomEvent("filterschange", { detail: filters }));
 }
 
 // Global navigate function
@@ -73,7 +110,10 @@ export function App() {
 		<ThemeContext.Provider value={{ theme, setTheme }}>
 			<div className="app">
 				{router.page === "sessions" && (
-					<SessionList onSelectSession={(id) => navigate(`session/${id}`)} />
+					<SessionList
+						onSelectSession={(id) => navigate(`session/${id}`)}
+						initialFilters={router.filters}
+					/>
 				)}
 				{router.page === "session" && router.sessionId && (
 					<SessionDetail

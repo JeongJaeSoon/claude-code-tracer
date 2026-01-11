@@ -144,9 +144,11 @@ sessionsRoutes.get("/", async (c) => {
 
 		// Get first user message for each session
 		const sessionIds = result.map((s) => s.id);
-		let firstPrompts: Record<string, string> = {};
+		const firstPrompts: Record<string, string> = {};
+		const sessionToolTypes: Record<string, string[]> = {};
 
 		if (sessionIds.length > 0) {
+			// Fetch first prompts
 			const firstMessages = await db
 				.select({
 					sessionId: messages.sessionId,
@@ -169,12 +171,33 @@ sessionsRoutes.get("/", async (c) => {
 					firstPrompts[msg.sessionId] = msg.content;
 				}
 			}
+
+			// Fetch tool types per session
+			const toolTypesResult = await db
+				.select({
+					sessionId: toolCalls.sessionId,
+					toolName: toolCalls.toolName,
+				})
+				.from(toolCalls)
+				.where(inArray(toolCalls.sessionId, sessionIds))
+				.groupBy(toolCalls.sessionId, toolCalls.toolName);
+
+			// Group by sessionId
+			for (const row of toolTypesResult) {
+				if (!sessionToolTypes[row.sessionId]) {
+					sessionToolTypes[row.sessionId] = [];
+				}
+				if (!sessionToolTypes[row.sessionId].includes(row.toolName)) {
+					sessionToolTypes[row.sessionId].push(row.toolName);
+				}
+			}
 		}
 
-		// Merge first prompt into sessions
+		// Merge first prompt and toolTypes into sessions
 		const sessionsWithPrompt = result.map((s) => ({
 			...s,
 			firstPrompt: firstPrompts[s.id] || null,
+			toolTypes: sessionToolTypes[s.id] || [],
 		}));
 
 		return c.json({
