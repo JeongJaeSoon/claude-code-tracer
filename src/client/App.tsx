@@ -85,7 +85,7 @@ export function navigate(path: string) {
 	window.location.hash = path;
 }
 
-export function App() {
+export function App(): JSX.Element {
 	const [theme, setTheme] = useState<Theme>("dark");
 	const [router, setRouter] = useState<RouterState>(() =>
 		parseHash(window.location.hash),
@@ -116,10 +116,7 @@ export function App() {
 					/>
 				)}
 				{router.page === "session" && router.sessionId && (
-					<SessionDetail
-						sessionId={router.sessionId}
-						onBack={() => navigate("sessions")}
-					/>
+					<SessionDetail sessionId={router.sessionId} />
 				)}
 			</div>
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { type URLFilterState, updateFilters } from "../App.tsx";
 import { type Project, ProjectSidebar } from "../components/ProjectSidebar.tsx";
+import { SessionHeader } from "../components/SessionHeader.tsx";
 import type { Session } from "../types/timeline.ts";
 import {
 	formatDate,
@@ -43,7 +44,7 @@ interface SessionListProps {
 export function SessionList({
 	onSelectSession,
 	initialFilters,
-}: SessionListProps) {
+}: SessionListProps): JSX.Element {
 	const [sessions, setSessions] = useState<Session[]>([]);
 	const [stats, setStats] = useState<Stats | null>(null);
 	const [loading, setLoading] = useState(true);
@@ -153,80 +154,18 @@ export function SessionList({
 		}
 	}
 
-	function handleRefresh() {
-		fetchProjects();
-		fetchSessions();
-	}
-
 	return (
 		<div className="session-list-page">
-			<header className="main-header">
-				<div>
-					<h1 className="page-title">Sessions</h1>
-					<p className="page-subtitle">
-						{stats ? `${stats.totalSessions} sessions traced` : "Loading..."}
-					</p>
-				</div>
-				<div className="header-actions">
-					{/* Mobile project selector */}
-					<select
-						className="mobile-project-select"
-						value={selectedProject ?? ""}
-						onChange={(e) =>
-							handleProjectChange(e.target.value === "" ? null : e.target.value)
-						}
-					>
-						<option value="">All Projects</option>
-						{projects.map((p) => (
-							<option key={p.projectName} value={p.projectName}>
-								{p.projectName} ({p.sessionCount})
-							</option>
-						))}
-					</select>
-
-					<div className="search-box">
-						<svg
-							width="16"
-							height="16"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
-							<path
-								strokeLinecap="round"
-								strokeLinejoin="round"
-								strokeWidth={2}
-								d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-							/>
-						</svg>
-						<input
-							type="text"
-							placeholder="Search sessions..."
-							value={searchQuery}
-							onChange={(e) => handleSearchChange(e.target.value)}
-							onKeyDown={(e) => e.key === "Enter" && handleSearchSubmit()}
-						/>
-						<span className="search-kbd">⌘K</span>
-					</div>
-					<button className="btn btn-primary" onClick={handleRefresh}>
-						<svg
-							width="16"
-							height="16"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
-							<path
-								strokeLinecap="round"
-								strokeLinejoin="round"
-								strokeWidth={2}
-								d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-							/>
-						</svg>
-						Refresh
-					</button>
-				</div>
-			</header>
+			<SessionHeader
+				title="Claude Code Tracer"
+				stats={{
+					durationMs: stats?.avgDurationMs ?? 0,
+					tokens: stats
+						? stats.totalTokens.input + stats.totalTokens.output
+						: 0,
+					toolCalls: stats?.totalToolCalls ?? 0,
+				}}
+			/>
 
 			<div className="session-list-body">
 				<ProjectSidebar
@@ -237,36 +176,6 @@ export function SessionList({
 				/>
 
 				<div className="main-content">
-					{/* Stats Grid */}
-					{stats && (
-						<div className="stats-grid">
-							<div className="stat-card">
-								<div className="stat-label">Total Sessions</div>
-								<div className="stat-value">{stats.totalSessions}</div>
-							</div>
-							<div className="stat-card">
-								<div className="stat-label">Avg Duration</div>
-								<div className="stat-value">
-									{formatDuration(stats.avgDurationMs)}
-								</div>
-							</div>
-							<div className="stat-card">
-								<div className="stat-label">Total Tokens</div>
-								<div className="stat-value">
-									{formatTokens(
-										stats.totalTokens.input + stats.totalTokens.output,
-									)}
-								</div>
-							</div>
-							<div className="stat-card">
-								<div className="stat-label">Tool Calls</div>
-								<div className="stat-value">
-									{formatTokens(stats.totalToolCalls)}
-								</div>
-							</div>
-						</div>
-					)}
-
 					{/* Filter Chips */}
 					<div className="filter-chips">
 						{/* Date filters */}
@@ -373,152 +282,11 @@ export function SessionList({
           overflow: hidden;
         }
 
-        .main-header {
-          padding: var(--space-lg) var(--space-xl);
-          border-bottom: 1px solid var(--border-subtle);
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          flex-shrink: 0;
-        }
-
-        .page-title {
-          font-size: 22px;
-          font-weight: 700;
-          letter-spacing: -0.02em;
-        }
-
-        .page-subtitle {
-          font-size: 13px;
-          color: var(--text-tertiary);
-          margin-top: 2px;
-        }
-
-        .header-actions {
-          display: flex;
-          align-items: center;
-          gap: var(--space-sm);
-        }
-
-        .search-box {
-          display: flex;
-          align-items: center;
-          gap: var(--space-sm);
-          padding: var(--space-sm) var(--space-md);
-          background: var(--bg-tertiary);
-          border: 1px solid var(--border-subtle);
-          border-radius: var(--radius-md);
-          min-width: 240px;
-        }
-
-        .search-box input {
-          flex: 1;
-          border: none;
-          background: transparent;
-          color: var(--text-primary);
-          font-size: 13px;
-          outline: none;
-        }
-
-        .search-box input::placeholder {
-          color: var(--text-muted);
-        }
-
-        .search-kbd {
-          font-family: var(--font-mono);
-          font-size: 10px;
-          color: var(--text-muted);
-          background: var(--bg-hover);
-          padding: 2px 6px;
-          border-radius: 4px;
-        }
-
-        .mobile-project-select {
-          display: none;
-          padding: var(--space-sm) var(--space-md);
-          background: var(--bg-tertiary);
-          border: 1px solid var(--border-subtle);
-          border-radius: var(--radius-md);
-          color: var(--text-primary);
-          font-size: 13px;
-          font-family: inherit;
-          cursor: pointer;
-        }
-
-        .mobile-project-select:focus {
-          outline: none;
-          border-color: var(--accent-primary);
-        }
-
-        @media (max-width: 767px) {
-          .mobile-project-select {
-            display: block;
-          }
-        }
-
-        .btn {
-          display: inline-flex;
-          align-items: center;
-          gap: var(--space-xs);
-          padding: var(--space-sm) var(--space-md);
-          border-radius: var(--radius-sm);
-          font-size: 13px;
-          font-weight: 500;
-          border: none;
-          cursor: pointer;
-          transition: all var(--transition-fast);
-        }
-
-        .btn-primary {
-          background: var(--accent-primary);
-          color: white;
-        }
-
-        .btn-primary:hover {
-          background: var(--accent-primary-hover);
-        }
-
         .main-content {
           flex: 1;
           padding: var(--space-xl);
           padding-bottom: var(--space-2xl);
           overflow-y: auto;
-        }
-
-        .stats-grid {
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: var(--space-md);
-          margin-bottom: var(--space-xl);
-        }
-
-        .stat-card {
-          background: var(--bg-elevated);
-          border: 1px solid var(--border-subtle);
-          border-radius: var(--radius-lg);
-          padding: var(--space-lg);
-          transition: all var(--transition-fast);
-        }
-
-        .stat-card:hover {
-          border-color: var(--border-default);
-          box-shadow: var(--shadow-md);
-        }
-
-        .stat-label {
-          font-size: 12px;
-          font-weight: 500;
-          color: var(--text-tertiary);
-          text-transform: uppercase;
-          letter-spacing: 0.03em;
-          margin-bottom: var(--space-xs);
-        }
-
-        .stat-value {
-          font-size: 28px;
-          font-weight: 700;
-          letter-spacing: -0.02em;
-          font-feature-settings: 'tnum';
         }
 
         .sessions-table {
