@@ -10,9 +10,7 @@ interface SessionDetailProps {
 	sessionId: string;
 }
 
-export function SessionDetail({
-	sessionId,
-}: SessionDetailProps): React.ReactElement {
+export function SessionDetail({ sessionId }: SessionDetailProps): JSX.Element {
 	const [session, setSession] = useState<Session | null>(null);
 	const [timelineData, setTimelineData] = useState<TimelineData | null>(null);
 	const [loading, setLoading] = useState(true);

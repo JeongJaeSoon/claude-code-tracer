@@ -44,7 +44,7 @@ interface SessionListProps {
 export function SessionList({
 	onSelectSession,
 	initialFilters,
-}: SessionListProps) {
+}: SessionListProps): JSX.Element {
 	const [sessions, setSessions] = useState<Session[]>([]);
 	const [stats, setStats] = useState<Stats | null>(null);
 	const [loading, setLoading] = useState(true);

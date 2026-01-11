@@ -85,7 +85,7 @@ export function navigate(path: string) {
 	window.location.hash = path;
 }
 
-export function App() {
+export function App(): JSX.Element {
 	const [theme, setTheme] = useState<Theme>("dark");
 	const [router, setRouter] = useState<RouterState>(() =>
 		parseHash(window.location.hash),

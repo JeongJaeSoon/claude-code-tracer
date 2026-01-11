@@ -23,7 +23,7 @@ export function SessionHeader({
 	title,
 	sessionId,
 	stats,
-}: SessionHeaderProps): React.ReactElement {
+}: SessionHeaderProps): JSX.Element {
 	const [copiedId, setCopiedId] = useState(false);
 
 	async function handleCopyId() {
