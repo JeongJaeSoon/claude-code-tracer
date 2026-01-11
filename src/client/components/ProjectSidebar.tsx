@@ -33,13 +33,11 @@ export function ProjectSidebar({
 				{/* All Projects option */}
 				<button
 					type="button"
-					className={`project-item ${selectedProject === null ? "active" : ""}`}
+					className={`sidebar-item ${selectedProject === null ? "active" : ""}`}
 					onClick={() => onSelectProject(null)}
 				>
-					<div className="project-info">
-						<span className="project-name">All Projects</span>
-					</div>
-					<span className="project-count">{totalSessions}</span>
+					<span className="sidebar-item-name">All Projects</span>
+					<span className="sidebar-item-count">{totalSessions}</span>
 				</button>
 
 				<div className="project-divider" />
@@ -54,14 +52,12 @@ export function ProjectSidebar({
 						<button
 							type="button"
 							key={project.projectName}
-							className={`project-item ${selectedProject === project.projectName ? "active" : ""}`}
+							className={`sidebar-item ${selectedProject === project.projectName ? "active" : ""}`}
 							onClick={() => onSelectProject(project.projectName)}
 							title={project.projectDir}
 						>
-							<div className="project-info">
-								<span className="project-name">{project.projectName}</span>
-							</div>
-							<span className="project-count">{project.sessionCount}</span>
+							<span className="sidebar-item-name">{project.projectName}</span>
+							<span className="sidebar-item-count">{project.sessionCount}</span>
 						</button>
 					))
 				)}
@@ -116,7 +112,7 @@ export function ProjectSidebar({
 					margin: var(--space-sm) var(--space-sm);
 				}
 
-				.project-item {
+				.sidebar-item {
 					width: 100%;
 					display: flex;
 					align-items: center;
@@ -132,29 +128,17 @@ export function ProjectSidebar({
 					font-family: inherit;
 				}
 
-				.project-item:hover {
+				.sidebar-item:hover {
 					background: var(--bg-hover);
 				}
 
-				.project-item.active {
+				.sidebar-item.active {
 					background: var(--accent-primary);
-					color: white;
 				}
 
-				.project-item.active .project-count {
-					background: rgba(255, 255, 255, 0.2);
-					color: white;
-				}
-
-				.project-info {
+				.sidebar-item-name {
 					flex: 1;
 					min-width: 0;
-					display: flex;
-					flex-direction: column;
-					gap: 2px;
-				}
-
-				.project-name {
 					font-size: 13px;
 					font-weight: 500;
 					color: var(--text-primary);
@@ -163,11 +147,11 @@ export function ProjectSidebar({
 					text-overflow: ellipsis;
 				}
 
-				.project-item.active .project-name {
+				.sidebar-item.active .sidebar-item-name {
 					color: white;
 				}
 
-				.project-count {
+				.sidebar-item-count {
 					font-size: 11px;
 					font-weight: 600;
 					color: var(--text-muted);
@@ -175,6 +159,11 @@ export function ProjectSidebar({
 					padding: 2px 8px;
 					border-radius: 10px;
 					flex-shrink: 0;
+				}
+
+				.sidebar-item.active .sidebar-item-count {
+					background: rgba(255, 255, 255, 0.2);
+					color: white;
 				}
 
 				.loading-projects,
