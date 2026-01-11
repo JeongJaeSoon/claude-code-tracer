@@ -2,6 +2,10 @@
 
 Claude Code 세션을 Flamegraph로 시각화하는 Self-hosted 트레이싱 도구
 
+## Rules
+
+- **패키지 매니저**: `bun`만 사용. npm, npx, yarn 사용 금지
+
 ## Tech Stack
 
 - **Runtime**: Bun
@@ -10,6 +14,7 @@ Claude Code 세션을 Flamegraph로 시각화하는 Self-hosted 트레이싱 도
 - **Flamegraph**: flame-chart-js
 - **ORM**: drizzle-orm
 - **DB**: SQLite
+- **Formatter**: Biome
 
 ## Project Structure
 
@@ -19,6 +24,20 @@ src/
 └── client/          # React SPA (pages/, components/)
 ```
 
+## Commands
+
+```bash
+bun install          # 의존성 설치
+bun run dev:server   # 백엔드 개발 서버 (Hono)
+bun run dev:client   # 프론트엔드 개발 서버 (Vite)
+bun run build        # 프로덕션 빌드
+bun run format       # 코드 포맷팅 (Biome)
+bun run lint         # 린트 검사 (Biome)
+bun run check        # 포맷팅 + 린트 (Biome)
+bun run db:generate  # DB 스키마 생성
+bun run db:migrate   # DB 마이그레이션
+```
+
 ## Core Concepts
 
 1. **데이터 흐름**: Claude Code JSONL -> Stop Hook -> POST /ingest -> DB -> Flamegraph UI
@@ -26,22 +45,13 @@ src/
 3. **Sub-agent**: 동일 `sessionId` + 다른 `agentId`로 연결
 4. **실행 시간**: `toolUseResult.durationMs` 필드 활용
 
-## Commands
-
-```bash
-bun install      # 의존성 설치
-bun run dev      # 개발 서버
-bun run db:push  # DB 마이그레이션
-bun run build    # 빌드
-```
-
 ## Development
 
 ### 개발 서버 실행
 
 ```bash
 # 터미널 1: 백엔드
-bun run dev
+bun run dev:server
 
 # 터미널 2: 프론트엔드
 bun run dev:client
@@ -59,7 +69,6 @@ bun run dev:client
 - **시각적 구현**: `frontend-design` - UI/UX 검토 및 프론트엔드 구현
 - **코드 정리**: `code-simplifier` - 구현 후 코드 리팩토링 및 정리
 - **기능 개발**: `feature-dev` + `ralph-loop` - 기능 구현 시 활용
-
 
 ## References
 
