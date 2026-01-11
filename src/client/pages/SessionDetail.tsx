@@ -1,15 +1,15 @@
-import { useState, useEffect, useMemo } from "react";
-import { TraceTree, type SelectedItem } from "../components/TraceTree.tsx";
-import { DetailPanel } from "../components/DetailPanel.tsx";
-import { CompactTimeline } from "../components/CompactTimeline.tsx";
+import { useEffect, useMemo, useState } from "react";
 import { CollapsibleSidebar } from "../components/CollapsibleSidebar.tsx";
+import { CompactTimeline } from "../components/CompactTimeline.tsx";
+import { DetailPanel } from "../components/DetailPanel.tsx";
+import { type SelectedItem, TraceTree } from "../components/TraceTree.tsx";
+import type { Session, TimelineData } from "../types/timeline.ts";
 import {
-	formatDuration,
-	formatTokens,
-	formatSessionId,
 	copyToClipboard,
+	formatDuration,
+	formatSessionId,
+	formatTokens,
 } from "../utils/format.ts";
-import type { TimelineData, Session } from "../types/timeline.ts";
 
 interface SessionDetailProps {
 	sessionId: string;

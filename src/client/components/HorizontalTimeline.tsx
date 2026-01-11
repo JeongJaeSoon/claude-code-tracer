@@ -1,7 +1,7 @@
 import { useMemo, useRef } from "react";
-import type { TimelineData, Turn, TimelineLane } from "../types/timeline";
+import { getToolColor, LANE_COLORS, TOOL_COLORS } from "../constants/tools";
+import type { TimelineData, TimelineLane, Turn } from "../types/timeline";
 import type { SelectedItem } from "./TraceTree";
-import { TOOL_COLORS, LANE_COLORS, getToolColor } from "../constants/tools";
 
 interface HorizontalTimelineProps {
 	data: TimelineData;

@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
-import {
-	formatDuration,
-	formatTokens,
-	formatDate,
-	formatSessionId,
-} from "../utils/format.ts";
+import { useEffect, useState } from "react";
 import type { Session } from "../types/timeline.ts";
+import {
+	formatDate,
+	formatDuration,
+	formatSessionId,
+	formatTokens,
+} from "../utils/format.ts";
 
 interface Stats {
 	totalSessions: number;

@@ -1,6 +1,6 @@
-import { useState, useEffect, createContext, useContext } from "react";
-import { SessionList } from "./pages/SessionList.tsx";
+import { createContext, useContext, useEffect, useState } from "react";
 import { SessionDetail } from "./pages/SessionDetail.tsx";
+import { SessionList } from "./pages/SessionList.tsx";
 
 // Theme context
 type Theme = "dark" | "light";

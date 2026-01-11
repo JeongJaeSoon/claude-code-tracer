@@ -1,7 +1,7 @@
-import { useState, type ReactElement } from "react";
-import { getToolIcon, getToolColor } from "../constants/tools.ts";
-import { SmartContentRenderer } from "./SmartContentRenderer.tsx";
+import { type ReactElement, useState } from "react";
+import { getToolColor, getToolIcon } from "../constants/tools.ts";
 import { formatDurationMs } from "../utils/format.ts";
+import { SmartContentRenderer } from "./SmartContentRenderer.tsx";
 import type { SelectedItem } from "./TraceTree.tsx";
 
 interface DetailPanelProps {

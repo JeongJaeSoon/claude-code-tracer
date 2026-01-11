@@ -1,4 +1,4 @@
-import { useState, useCallback, type ReactElement } from "react";
+import { type ReactElement, useCallback, useState } from "react";
 
 interface CopyButtonProps {
 	content: string;

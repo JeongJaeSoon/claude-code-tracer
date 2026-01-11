@@ -1,11 +1,11 @@
 import { Hono } from "hono";
+import { serveStatic } from "hono/bun";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
-import { serveStatic } from "hono/bun";
 
 import { ingestRoutes } from "./routes/ingest.ts";
-import { sessionsRoutes } from "./routes/sessions.ts";
 import { projectsRoutes } from "./routes/projects.ts";
+import { sessionsRoutes } from "./routes/sessions.ts";
 import { timelineRoutes } from "./routes/timeline.ts";
 
 const app = new Hono();

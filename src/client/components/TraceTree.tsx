@@ -1,13 +1,13 @@
-import { useState, useMemo, useEffect, useRef, type ReactElement } from "react";
-import { getToolIcon, getToolColor } from "../constants/tools.ts";
-import { formatDurationMs } from "../utils/format.ts";
+import { type ReactElement, useEffect, useMemo, useRef, useState } from "react";
+import { getToolColor, getToolIcon } from "../constants/tools.ts";
 import type {
+	AssistantMessage,
+	TimelineData,
+	TimelineLane,
 	Turn,
 	TurnStep,
-	TimelineLane,
-	TimelineData,
-	AssistantMessage,
 } from "../types/timeline.ts";
+import { formatDurationMs } from "../utils/format.ts";
 
 export interface SelectedItem {
 	type: "prompt" | "step" | "finalResponse" | "turn";

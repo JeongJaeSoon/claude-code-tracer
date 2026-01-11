@@ -1,4 +1,4 @@
-import type { NewSession, NewToolCall, NewMessage } from "../db/schema.ts";
+import type { NewMessage, NewSession, NewToolCall } from "../db/schema.ts";
 
 interface ContentBlock {
 	type: "text" | "tool_use" | "tool_result" | "thinking";
@@ -62,10 +62,7 @@ export async function parseJSONL(content: string): Promise<ParseResult> {
 		try {
 			const msg = JSON.parse(line) as SessionMessage;
 			parsedMessages.push(msg);
-		} catch {
-			// Skip invalid JSON lines
-			continue;
-		}
+		} catch {}
 	}
 
 	if (parsedMessages.length === 0) {

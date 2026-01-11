@@ -1,11 +1,11 @@
-import { useRef, useMemo, useEffect, useState, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getToolColor, TOOL_COLORS } from "../constants/tools.ts";
 import type {
-	TimelineData,
-	Turn,
-	TimelineLane,
-	TurnStep,
 	AssistantMessage,
+	TimelineData,
+	TimelineLane,
+	Turn,
+	TurnStep,
 } from "../types/timeline.ts";
 import type { SelectedItem } from "./TraceTree.tsx";
 

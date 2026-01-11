@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
-import { FilterBar, getDefaultFilters } from "../components/FilterBar";
-import { formatDuration, formatTokens, formatDate } from "../utils/format.ts";
+import { useCallback, useEffect, useState } from "react";
 import type { FilterState } from "../components/FilterBar";
+import { FilterBar, getDefaultFilters } from "../components/FilterBar";
 import type { Session } from "../types/timeline.ts";
+import { formatDate, formatDuration, formatTokens } from "../utils/format.ts";
 
 interface ProjectStats {
 	projectName: string;

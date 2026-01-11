@@ -1,4 +1,4 @@
-import type { ReactNode, ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 
 interface CollapsibleSidebarProps {
 	collapsed: boolean;

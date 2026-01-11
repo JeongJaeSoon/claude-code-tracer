@@ -1,7 +1,7 @@
+import { asc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { db } from "../db/client.ts";
-import { sessions, toolCalls, messages } from "../db/schema.ts";
-import { eq, asc } from "drizzle-orm";
+import { messages, sessions, toolCalls } from "../db/schema.ts";
 
 const app = new Hono();
 
