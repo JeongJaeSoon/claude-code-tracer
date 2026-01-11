@@ -7,7 +7,7 @@ const dbPath = process.env.DATABASE_URL || "./data/tracer.db";
 // Ensure directory exists
 const dbDir = dbPath.substring(0, dbPath.lastIndexOf("/"));
 if (dbDir) {
-  await Bun.write(dbDir + "/.gitkeep", "");
+	await Bun.write(dbDir + "/.gitkeep", "");
 }
 
 const sqlite = new Database(dbPath);

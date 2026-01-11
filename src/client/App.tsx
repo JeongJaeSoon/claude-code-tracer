@@ -6,86 +6,84 @@ import { SessionDetail } from "./pages/SessionDetail.tsx";
 type Theme = "dark" | "light";
 
 interface ThemeContextType {
-  theme: Theme;
-  setTheme: (theme: Theme) => void;
+	theme: Theme;
+	setTheme: (theme: Theme) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType>({
-  theme: "dark",
-  setTheme: () => {},
+	theme: "dark",
+	setTheme: () => {},
 });
 
 export function useTheme() {
-  return useContext(ThemeContext);
+	return useContext(ThemeContext);
 }
 
 // Router state - hash-based routing
 type Page = "sessions" | "session";
 
 interface RouterState {
-  page: Page;
-  sessionId?: string;
+	page: Page;
+	sessionId?: string;
 }
 
 // Parse hash into route state
 function parseHash(hash: string): RouterState {
-  const path = hash.startsWith("#") ? hash.slice(1) : hash;
+	const path = hash.startsWith("#") ? hash.slice(1) : hash;
 
-  // #session/{id} -> session detail
-  if (path.startsWith("session/")) {
-    const sessionId = path.slice(8); // "session/".length = 8
-    if (sessionId) {
-      return { page: "session", sessionId };
-    }
-  }
+	// #session/{id} -> session detail
+	if (path.startsWith("session/")) {
+		const sessionId = path.slice(8); // "session/".length = 8
+		if (sessionId) {
+			return { page: "session", sessionId };
+		}
+	}
 
-  // Default: sessions list
-  return { page: "sessions" };
+	// Default: sessions list
+	return { page: "sessions" };
 }
 
 // Global navigate function
 export function navigate(path: string) {
-  window.location.hash = path;
+	window.location.hash = path;
 }
 
 export function App() {
-  const [theme, setTheme] = useState<Theme>("dark");
-  const [router, setRouter] = useState<RouterState>(() =>
-    parseHash(window.location.hash)
-  );
+	const [theme, setTheme] = useState<Theme>("dark");
+	const [router, setRouter] = useState<RouterState>(() =>
+		parseHash(window.location.hash),
+	);
 
-  // Apply theme to document
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-  }, [theme]);
+	// Apply theme to document
+	useEffect(() => {
+		document.documentElement.dataset.theme = theme;
+	}, [theme]);
 
-  // Listen for hash changes (browser back/forward, direct navigation)
-  useEffect(() => {
-    const handleHashChange = () => {
-      setRouter(parseHash(window.location.hash));
-    };
+	// Listen for hash changes (browser back/forward, direct navigation)
+	useEffect(() => {
+		const handleHashChange = () => {
+			setRouter(parseHash(window.location.hash));
+		};
 
-    window.addEventListener("hashchange", handleHashChange);
-    return () => window.removeEventListener("hashchange", handleHashChange);
-  }, []);
+		window.addEventListener("hashchange", handleHashChange);
+		return () => window.removeEventListener("hashchange", handleHashChange);
+	}, []);
 
-  return (
-    <ThemeContext.Provider value={{ theme, setTheme }}>
-      <div className="app">
-        {router.page === "sessions" && (
-          <SessionList
-            onSelectSession={(id) => navigate(`session/${id}`)}
-          />
-        )}
-        {router.page === "session" && router.sessionId && (
-          <SessionDetail
-            sessionId={router.sessionId}
-            onBack={() => navigate("sessions")}
-          />
-        )}
-      </div>
+	return (
+		<ThemeContext.Provider value={{ theme, setTheme }}>
+			<div className="app">
+				{router.page === "sessions" && (
+					<SessionList onSelectSession={(id) => navigate(`session/${id}`)} />
+				)}
+				{router.page === "session" && router.sessionId && (
+					<SessionDetail
+						sessionId={router.sessionId}
+						onBack={() => navigate("sessions")}
+					/>
+				)}
+			</div>
 
-      <style>{`
+			<style>{`
         .app {
           display: flex;
           min-height: 100vh;
@@ -93,6 +91,6 @@ export function App() {
           background: var(--bg-primary);
         }
       `}</style>
-    </ThemeContext.Provider>
-  );
+		</ThemeContext.Provider>
+	);
 }

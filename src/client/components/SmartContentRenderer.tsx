@@ -1,208 +1,164 @@
-import { useState, useCallback, useMemo } from "react";
-import { MarkdownRenderer } from "./MarkdownRenderer";
+import { useMemo } from "react";
+import { MarkdownRenderer } from "./MarkdownRenderer.tsx";
+import { CopyButton } from "./CopyButton.tsx";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 type ContentType = "json" | "markdown" | "code" | "cli" | "plain";
 
 interface SmartContentRendererProps {
-  content: string;
-  className?: string;
-  forceType?: ContentType;  // Override auto-detection
-  language?: string;        // For code blocks
+	content: string;
+	className?: string;
+	forceType?: ContentType;
+	language?: string;
 }
 
-// Copy button component
-function CopyButton({ content, className = "" }: { content: string; className?: string }) {
-  const [copied, setCopied] = useState(false);
+const MARKDOWN_PATTERNS = [
+	/^#{1,6}\s/m,
+	/^```[\s\S]*```$/m,
+	/^\s*[-*+]\s/m,
+	/^\s*\d+\.\s/m,
+	/\[.+\]\(.+\)/,
+	/\*\*.+\*\*/,
+	/\*.+\*/,
+	/^\s*>\s/m,
+	/\|.+\|.+\|/,
+	/^---$/m,
+];
 
-  const handleCopy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(content);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy:", err);
-    }
-  }, [content]);
+const CLI_PATTERNS = [
+	/^\s*\$\s/m,
+	/^(\/[\w\-.]+)+/m,
+	/^[A-Z]:\\[\w\\]+/m,
+	/^\s*(npm|yarn|bun|git|docker)\s/m,
+	/^(error|warning|info):/im,
+	/\x1b\[[\d;]*m/,
+	/^\d{4}-\d{2}-\d{2}/m,
+	/^[\w\-.]+\s+\d+\s+\w+/m,
+];
 
-  return (
-    <button
-      className={`smart-copy-btn ${className}`}
-      onClick={handleCopy}
-      title="Copy to clipboard"
-    >
-      {copied ? (
-        <>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <polyline points="20,6 9,17 4,12" />
-          </svg>
-          <span>Copied!</span>
-        </>
-      ) : (
-        <>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-            <path d="M5,15H4a2,2,0,0,1-2-2V4A2,2,0,0,1,4,2H15a2,2,0,0,1,2,2V5" />
-          </svg>
-          <span>Copy</span>
-        </>
-      )}
-    </button>
-  );
-}
-
-// Detect content type
 function detectContentType(content: string): ContentType {
-  if (!content || typeof content !== "string") return "plain";
+	if (!content || typeof content !== "string") return "plain";
 
-  const trimmed = content.trim();
+	const trimmed = content.trim();
 
-  // JSON detection
-  if ((trimmed.startsWith("{") && trimmed.endsWith("}")) ||
-      (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
-    try {
-      JSON.parse(trimmed);
-      return "json";
-    } catch {
-      // Not valid JSON, continue detection
-    }
-  }
+	if (
+		(trimmed.startsWith("{") && trimmed.endsWith("}")) ||
+		(trimmed.startsWith("[") && trimmed.endsWith("]"))
+	) {
+		try {
+			JSON.parse(trimmed);
+			return "json";
+		} catch {
+			// Not valid JSON, continue detection
+		}
+	}
 
-  // Markdown detection - check for common patterns
-  const markdownPatterns = [
-    /^#{1,6}\s/m,           // Headers
-    /^```[\s\S]*```$/m,     // Code blocks
-    /^\s*[-*+]\s/m,         // Unordered lists
-    /^\s*\d+\.\s/m,         // Ordered lists
-    /\[.+\]\(.+\)/,         // Links
-    /\*\*.+\*\*/,           // Bold
-    /\*.+\*/,               // Italic (but not in CLI paths)
-    /^\s*>\s/m,             // Blockquotes
-    /\|.+\|.+\|/,           // Tables
-    /^---$/m,               // Horizontal rules
-  ];
+	const markdownScore = MARKDOWN_PATTERNS.filter((p) => p.test(trimmed)).length;
+	if (markdownScore >= 2) return "markdown";
 
-  const markdownScore = markdownPatterns.filter(p => p.test(trimmed)).length;
-  if (markdownScore >= 2) return "markdown";
+	const cliScore = CLI_PATTERNS.filter((p) => p.test(trimmed)).length;
+	if (cliScore >= 1) return "cli";
 
-  // CLI/terminal output detection
-  const cliPatterns = [
-    /^\s*\$\s/m,                          // Shell prompt
-    /^(\/[\w\-.]+)+/m,                    // Unix paths
-    /^[A-Z]:\\[\w\\]+/m,                  // Windows paths
-    /^\s*(npm|yarn|bun|git|docker)\s/m,  // Common CLI tools
-    /^(error|warning|info):/im,          // Log-style output
-    /\x1b\[[\d;]*m/,                      // ANSI escape codes
-    /^\d{4}-\d{2}-\d{2}/m,               // Timestamps
-    /^[\w\-.]+\s+\d+\s+\w+/m,            // ls-style output
-  ];
+	const hasCodePatterns =
+		trimmed.includes("function ") ||
+		trimmed.includes("const ") ||
+		trimmed.includes("class ") ||
+		trimmed.includes("import ") ||
+		/^\s{2,}/m.test(trimmed);
 
-  const cliScore = cliPatterns.filter(p => p.test(trimmed)).length;
-  if (cliScore >= 1) return "cli";
+	if (hasCodePatterns) return "code";
 
-  // If has code-like patterns (indentation, brackets)
-  if (trimmed.includes("function ") ||
-      trimmed.includes("const ") ||
-      trimmed.includes("class ") ||
-      trimmed.includes("import ") ||
-      /^\s{2,}/m.test(trimmed)) {
-    return "code";
-  }
-
-  return "plain";
+	return "plain";
 }
 
-// Format JSON with pretty print
 function formatJson(content: string): string {
-  try {
-    const parsed = JSON.parse(content.trim());
-    return JSON.stringify(parsed, null, 2);
-  } catch {
-    return content;
-  }
+	try {
+		const parsed = JSON.parse(content.trim());
+		return JSON.stringify(parsed, null, 2);
+	} catch {
+		return content;
+	}
+}
+
+const HIGHLIGHTER_STYLE: React.CSSProperties = {
+	margin: 0,
+	borderRadius: "0 0 6px 6px",
+	fontSize: "12px",
+	lineHeight: "1.5",
+	padding: "12px 16px",
+	background: "#1a1d23",
+};
+
+function renderContentBody(
+	contentType: ContentType,
+	content: string,
+	formattedContent: string,
+	language?: string,
+): React.ReactElement {
+	switch (contentType) {
+		case "json":
+			return (
+				<SyntaxHighlighter
+					style={vscDarkPlus}
+					language="json"
+					customStyle={HIGHLIGHTER_STYLE}
+				>
+					{formattedContent}
+				</SyntaxHighlighter>
+			);
+		case "markdown":
+			return (
+				<div className="smart-markdown-wrapper">
+					<MarkdownRenderer content={content} />
+				</div>
+			);
+		case "code":
+			return (
+				<SyntaxHighlighter
+					style={vscDarkPlus}
+					language={language || "typescript"}
+					customStyle={HIGHLIGHTER_STYLE}
+				>
+					{content}
+				</SyntaxHighlighter>
+			);
+		case "cli":
+			return (
+				<div className="smart-cli-output">
+					<pre>{content}</pre>
+				</div>
+			);
+		case "plain":
+		default:
+			return <div className="smart-plain-text">{content}</div>;
+	}
 }
 
 export function SmartContentRenderer({
-  content,
-  className = "",
-  forceType,
-  language,
-}: SmartContentRendererProps) {
-  const contentType = forceType || detectContentType(content);
+	content,
+	className = "",
+	forceType,
+	language,
+}: SmartContentRendererProps): React.ReactElement {
+	const contentType = forceType || detectContentType(content);
 
-  const formattedContent = useMemo(() => {
-    if (contentType === "json") {
-      return formatJson(content);
-    }
-    return content;
-  }, [content, contentType]);
+	const formattedContent = useMemo(() => {
+		return contentType === "json" ? formatJson(content) : content;
+	}, [content, contentType]);
 
-  return (
-    <div className={`smart-content ${className}`}>
-      {/* Copy button - always visible */}
-      <div className="smart-content-header">
-        <span className="content-type-badge">{contentType.toUpperCase()}</span>
-        <CopyButton content={content} />
-      </div>
-
-      <div className="smart-content-body">
-        {contentType === "json" && (
-          <SyntaxHighlighter
-            style={vscDarkPlus}
-            language="json"
-            customStyle={{
-              margin: 0,
-              borderRadius: "0 0 6px 6px",
-              fontSize: "12px",
-              lineHeight: "1.5",
-              padding: "12px 16px",
-              background: "#1a1d23",
-            }}
-          >
-            {formattedContent}
-          </SyntaxHighlighter>
-        )}
-
-        {contentType === "markdown" && (
-          <div className="smart-markdown-wrapper">
-            <MarkdownRenderer content={content} />
-          </div>
-        )}
-
-        {contentType === "code" && (
-          <SyntaxHighlighter
-            style={vscDarkPlus}
-            language={language || "typescript"}
-            customStyle={{
-              margin: 0,
-              borderRadius: "0 0 6px 6px",
-              fontSize: "12px",
-              lineHeight: "1.5",
-              padding: "12px 16px",
-              background: "#1a1d23",
-            }}
-          >
-            {content}
-          </SyntaxHighlighter>
-        )}
-
-        {contentType === "cli" && (
-          <div className="smart-cli-output">
-            <pre>{content}</pre>
-          </div>
-        )}
-
-        {contentType === "plain" && (
-          <div className="smart-plain-text">
-            {content}
-          </div>
-        )}
-      </div>
-
-      <style>{smartContentStyles}</style>
-    </div>
-  );
+	return (
+		<div className={`smart-content ${className}`}>
+			<div className="smart-content-header">
+				<span className="content-type-badge">{contentType.toUpperCase()}</span>
+				<CopyButton content={content} />
+			</div>
+			<div className="smart-content-body">
+				{renderContentBody(contentType, content, formattedContent, language)}
+			</div>
+			<style>{smartContentStyles}</style>
+		</div>
+	);
 }
 
 const smartContentStyles = `
@@ -231,31 +187,6 @@ const smartContentStyles = `
     background: rgba(255, 255, 255, 0.05);
     padding: 2px 6px;
     border-radius: 3px;
-  }
-
-  .smart-copy-btn {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 4px 8px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 4px;
-    color: var(--text-muted);
-    font-size: 11px;
-    cursor: pointer;
-    transition: all 0.15s ease;
-  }
-
-  .smart-copy-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: var(--text-secondary);
-    border-color: rgba(255, 255, 255, 0.2);
-  }
-
-  .smart-copy-btn span {
-    font-family: var(--font-mono);
-    font-weight: 500;
   }
 
   .smart-content-body {

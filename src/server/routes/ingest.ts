@@ -8,205 +8,228 @@ import { parseJSONL } from "../services/parser.ts";
 export const ingestRoutes = new Hono();
 
 // Allowed base path for file access (local-only endpoint)
-const ALLOWED_BASE_PATH = process.env.CLAUDE_PROJECTS_DIR
-  || `${process.env.HOME}/.claude`;
+const ALLOWED_BASE_PATH =
+	process.env.CLAUDE_PROJECTS_DIR || `${process.env.HOME}/.claude`;
 
 // POST /api/ingest - Receive JSONL data from Stop hook
 ingestRoutes.post("/", async (c) => {
-  try {
-    const body = await c.req.text();
-    const result = await parseJSONL(body);
+	try {
+		const body = await c.req.text();
+		const result = await parseJSONL(body);
 
-    if (!result.session) {
-      return c.json({ error: "Failed to parse session data" }, 400);
-    }
+		if (!result.session) {
+			return c.json({ error: "Failed to parse session data" }, 400);
+		}
 
-    // Insert session
-    await db.insert(sessions).values(result.session).onConflictDoUpdate({
-      target: sessions.id,
-      set: {
-        endedAt: result.session.endedAt,
-        totalDurationMs: result.session.totalDurationMs,
-        inputTokens: result.session.inputTokens,
-        outputTokens: result.session.outputTokens,
-        cacheReadTokens: result.session.cacheReadTokens,
-        cacheCreationTokens: result.session.cacheCreationTokens,
-        toolCallCount: result.session.toolCallCount,
-        subAgentCount: result.session.subAgentCount,
-        status: result.session.status,
-      },
-    });
+		// Insert session
+		await db
+			.insert(sessions)
+			.values(result.session)
+			.onConflictDoUpdate({
+				target: sessions.id,
+				set: {
+					endedAt: result.session.endedAt,
+					totalDurationMs: result.session.totalDurationMs,
+					inputTokens: result.session.inputTokens,
+					outputTokens: result.session.outputTokens,
+					cacheReadTokens: result.session.cacheReadTokens,
+					cacheCreationTokens: result.session.cacheCreationTokens,
+					toolCallCount: result.session.toolCallCount,
+					subAgentCount: result.session.subAgentCount,
+					status: result.session.status,
+				},
+			});
 
-    // Get existing uuids to prevent duplicates
-    const existingToolCalls = await db
-      .select({ uuid: toolCalls.uuid })
-      .from(toolCalls)
-      .where(eq(toolCalls.sessionId, result.session.id));
-    const existingToolUuids = new Set(existingToolCalls.map(t => t.uuid));
+		// Get existing uuids to prevent duplicates
+		const existingToolCalls = await db
+			.select({ uuid: toolCalls.uuid })
+			.from(toolCalls)
+			.where(eq(toolCalls.sessionId, result.session.id));
+		const existingToolUuids = new Set(existingToolCalls.map((t) => t.uuid));
 
-    const existingMessages = await db
-      .select({ uuid: messages.uuid })
-      .from(messages)
-      .where(eq(messages.sessionId, result.session.id));
-    const existingMessageUuids = new Set(existingMessages.map(m => m.uuid));
+		const existingMessages = await db
+			.select({ uuid: messages.uuid })
+			.from(messages)
+			.where(eq(messages.sessionId, result.session.id));
+		const existingMessageUuids = new Set(existingMessages.map((m) => m.uuid));
 
-    // Insert only new tool calls
-    const newToolCalls = result.toolCalls.filter(tc => !existingToolUuids.has(tc.uuid));
-    if (newToolCalls.length > 0) {
-      for (const toolCall of newToolCalls) {
-        await db.insert(toolCalls).values(toolCall).onConflictDoNothing();
-      }
-    }
+		// Insert only new tool calls
+		const newToolCalls = result.toolCalls.filter(
+			(tc) => !existingToolUuids.has(tc.uuid),
+		);
+		if (newToolCalls.length > 0) {
+			for (const toolCall of newToolCalls) {
+				await db.insert(toolCalls).values(toolCall).onConflictDoNothing();
+			}
+		}
 
-    // Insert only new messages
-    const newMessages = result.messages.filter(msg => !existingMessageUuids.has(msg.uuid));
-    if (newMessages.length > 0) {
-      for (const message of newMessages) {
-        await db.insert(messages).values(message).onConflictDoNothing();
-      }
-    }
+		// Insert only new messages
+		const newMessages = result.messages.filter(
+			(msg) => !existingMessageUuids.has(msg.uuid),
+		);
+		if (newMessages.length > 0) {
+			for (const message of newMessages) {
+				await db.insert(messages).values(message).onConflictDoNothing();
+			}
+		}
 
-    return c.json({
-      success: true,
-      sessionId: result.session.id,
-      toolCallCount: newToolCalls.length,
-      messageCount: newMessages.length,
-    });
-  } catch (error) {
-    console.error("Ingest error:", error);
-    return c.json({ error: String(error) }, 500);
-  }
+		return c.json({
+			success: true,
+			sessionId: result.session.id,
+			toolCallCount: newToolCalls.length,
+			messageCount: newMessages.length,
+		});
+	} catch (error) {
+		console.error("Ingest error:", error);
+		return c.json({ error: String(error) }, 500);
+	}
 });
 
 // POST /api/ingest/file - Receive file path and read it (includes sub-agents)
 // Note: This endpoint is for local use only. Path must be within ~/.claude
 ingestRoutes.post("/file", async (c) => {
-  try {
-    const { path: filePath } = await c.req.json<{ path: string }>();
+	try {
+		const { path: filePath } = await c.req.json<{ path: string }>();
 
-    if (!filePath) {
-      return c.json({ error: "path is required" }, 400);
-    }
+		if (!filePath) {
+			return c.json({ error: "path is required" }, 400);
+		}
 
-    // Path traversal prevention: resolve to absolute path and check prefix
-    const resolvedPath = path.resolve(filePath);
-    if (!resolvedPath.startsWith(ALLOWED_BASE_PATH)) {
-      return c.json({
-        error: `Access denied: path must be within ${ALLOWED_BASE_PATH} directory`
-      }, 403);
-    }
+		// Path traversal prevention: resolve to absolute path and check prefix
+		const resolvedPath = path.resolve(filePath);
+		if (!resolvedPath.startsWith(ALLOWED_BASE_PATH)) {
+			return c.json(
+				{
+					error: `Access denied: path must be within ${ALLOWED_BASE_PATH} directory`,
+				},
+				403,
+			);
+		}
 
-    const file = Bun.file(resolvedPath);
-    if (!await file.exists()) {
-      return c.json({ error: "File not found" }, 404);
-    }
+		const file = Bun.file(resolvedPath);
+		if (!(await file.exists())) {
+			return c.json({ error: "File not found" }, 404);
+		}
 
-    // Parse main session file
-    const content = await file.text();
-    const result = await parseJSONL(content);
+		// Parse main session file
+		const content = await file.text();
+		const result = await parseJSONL(content);
 
-    if (!result.session) {
-      return c.json({ error: "Failed to parse session data" }, 400);
-    }
+		if (!result.session) {
+			return c.json({ error: "Failed to parse session data" }, 400);
+		}
 
-    // Check for sub-agents directory
-    // Path: {sessionId}.jsonl -> {sessionId}/subagents/
-    const sessionDir = resolvedPath.replace(".jsonl", "");
-    const subagentsDir = `${sessionDir}/subagents`;
+		// Check for sub-agents directory
+		// Path: {sessionId}.jsonl -> {sessionId}/subagents/
+		const sessionDir = resolvedPath.replace(".jsonl", "");
+		const subagentsDir = `${sessionDir}/subagents`;
 
-    let subAgentCount = 0;
-    const subAgentFile = Bun.file(subagentsDir);
+		let subAgentCount = 0;
+		const subAgentFile = Bun.file(subagentsDir);
 
-    try {
-      const { readdir } = await import("node:fs/promises");
-      const files = await readdir(subagentsDir);
+		try {
+			const { readdir } = await import("node:fs/promises");
+			const files = await readdir(subagentsDir);
 
-      for (const agentFile of files) {
-        if (agentFile.endsWith(".jsonl")) {
-          const subAgentPath = `${subagentsDir}/${agentFile}`;
-          const subContent = await Bun.file(subAgentPath).text();
-          const subResult = await parseJSONL(subContent);
+			for (const agentFile of files) {
+				if (agentFile.endsWith(".jsonl")) {
+					const subAgentPath = `${subagentsDir}/${agentFile}`;
+					const subContent = await Bun.file(subAgentPath).text();
+					const subResult = await parseJSONL(subContent);
 
-          // Merge sub-agent data into main result
-          if (subResult.toolCalls.length > 0) {
-            result.toolCalls.push(...subResult.toolCalls);
-          }
-          if (subResult.messages.length > 0) {
-            result.messages.push(...subResult.messages);
-          }
+					// Merge sub-agent data into main result
+					if (subResult.toolCalls.length > 0) {
+						result.toolCalls.push(...subResult.toolCalls);
+					}
+					if (subResult.messages.length > 0) {
+						result.messages.push(...subResult.messages);
+					}
 
-          // Accumulate tokens
-          if (subResult.session) {
-            result.session.inputTokens = (result.session.inputTokens || 0) + (subResult.session.inputTokens || 0);
-            result.session.outputTokens = (result.session.outputTokens || 0) + (subResult.session.outputTokens || 0);
-            result.session.cacheReadTokens = (result.session.cacheReadTokens || 0) + (subResult.session.cacheReadTokens || 0);
-          }
+					// Accumulate tokens
+					if (subResult.session) {
+						result.session.inputTokens =
+							(result.session.inputTokens || 0) +
+							(subResult.session.inputTokens || 0);
+						result.session.outputTokens =
+							(result.session.outputTokens || 0) +
+							(subResult.session.outputTokens || 0);
+						result.session.cacheReadTokens =
+							(result.session.cacheReadTokens || 0) +
+							(subResult.session.cacheReadTokens || 0);
+					}
 
-          subAgentCount++;
-        }
-      }
-    } catch {
-      // subagents directory doesn't exist or can't be read - that's fine
-    }
+					subAgentCount++;
+				}
+			}
+		} catch {
+			// subagents directory doesn't exist or can't be read - that's fine
+		}
 
-    // Update counts
-    result.session.toolCallCount = result.toolCalls.length;
-    result.session.subAgentCount = subAgentCount;
+		// Update counts
+		result.session.toolCallCount = result.toolCalls.length;
+		result.session.subAgentCount = subAgentCount;
 
-    // Insert session
-    await db.insert(sessions).values(result.session).onConflictDoUpdate({
-      target: sessions.id,
-      set: {
-        endedAt: result.session.endedAt,
-        totalDurationMs: result.session.totalDurationMs,
-        inputTokens: result.session.inputTokens,
-        outputTokens: result.session.outputTokens,
-        cacheReadTokens: result.session.cacheReadTokens,
-        cacheCreationTokens: result.session.cacheCreationTokens,
-        toolCallCount: result.session.toolCallCount,
-        subAgentCount: result.session.subAgentCount,
-        status: result.session.status,
-      },
-    });
+		// Insert session
+		await db
+			.insert(sessions)
+			.values(result.session)
+			.onConflictDoUpdate({
+				target: sessions.id,
+				set: {
+					endedAt: result.session.endedAt,
+					totalDurationMs: result.session.totalDurationMs,
+					inputTokens: result.session.inputTokens,
+					outputTokens: result.session.outputTokens,
+					cacheReadTokens: result.session.cacheReadTokens,
+					cacheCreationTokens: result.session.cacheCreationTokens,
+					toolCallCount: result.session.toolCallCount,
+					subAgentCount: result.session.subAgentCount,
+					status: result.session.status,
+				},
+			});
 
-    // Get existing uuids to prevent duplicates
-    const existingToolCalls = await db
-      .select({ uuid: toolCalls.uuid })
-      .from(toolCalls)
-      .where(eq(toolCalls.sessionId, result.session.id));
-    const existingToolUuids = new Set(existingToolCalls.map(t => t.uuid));
+		// Get existing uuids to prevent duplicates
+		const existingToolCalls = await db
+			.select({ uuid: toolCalls.uuid })
+			.from(toolCalls)
+			.where(eq(toolCalls.sessionId, result.session.id));
+		const existingToolUuids = new Set(existingToolCalls.map((t) => t.uuid));
 
-    const existingMessages = await db
-      .select({ uuid: messages.uuid })
-      .from(messages)
-      .where(eq(messages.sessionId, result.session.id));
-    const existingMessageUuids = new Set(existingMessages.map(m => m.uuid));
+		const existingMessages = await db
+			.select({ uuid: messages.uuid })
+			.from(messages)
+			.where(eq(messages.sessionId, result.session.id));
+		const existingMessageUuids = new Set(existingMessages.map((m) => m.uuid));
 
-    // Insert only new tool calls
-    const newToolCalls = result.toolCalls.filter(tc => !existingToolUuids.has(tc.uuid));
-    if (newToolCalls.length > 0) {
-      for (const toolCall of newToolCalls) {
-        await db.insert(toolCalls).values(toolCall).onConflictDoNothing();
-      }
-    }
+		// Insert only new tool calls
+		const newToolCalls = result.toolCalls.filter(
+			(tc) => !existingToolUuids.has(tc.uuid),
+		);
+		if (newToolCalls.length > 0) {
+			for (const toolCall of newToolCalls) {
+				await db.insert(toolCalls).values(toolCall).onConflictDoNothing();
+			}
+		}
 
-    // Insert only new messages
-    const newMessages = result.messages.filter(msg => !existingMessageUuids.has(msg.uuid));
-    if (newMessages.length > 0) {
-      for (const message of newMessages) {
-        await db.insert(messages).values(message).onConflictDoNothing();
-      }
-    }
+		// Insert only new messages
+		const newMessages = result.messages.filter(
+			(msg) => !existingMessageUuids.has(msg.uuid),
+		);
+		if (newMessages.length > 0) {
+			for (const message of newMessages) {
+				await db.insert(messages).values(message).onConflictDoNothing();
+			}
+		}
 
-    return c.json({
-      success: true,
-      sessionId: result.session.id,
-      toolCallCount: newToolCalls.length,
-      messageCount: newMessages.length,
-      subAgentCount,
-    });
-  } catch (error) {
-    console.error("Ingest file error:", error);
-    return c.json({ error: String(error) }, 500);
-  }
+		return c.json({
+			success: true,
+			sessionId: result.session.id,
+			toolCallCount: newToolCalls.length,
+			messageCount: newMessages.length,
+			subAgentCount,
+		});
+	} catch (error) {
+		console.error("Ingest file error:", error);
+		return c.json({ error: String(error) }, 500);
+	}
 });

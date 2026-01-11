@@ -1,495 +1,477 @@
-import { useState } from "react";
+import { useState, type ReactElement } from "react";
 import { getToolIcon, getToolColor } from "../constants/tools.ts";
 import { SmartContentRenderer } from "./SmartContentRenderer.tsx";
+import { formatDurationMs } from "../utils/format.ts";
 import type { SelectedItem } from "./TraceTree.tsx";
 
 interface DetailPanelProps {
-  selectedItem: SelectedItem | null;
+	selectedItem: SelectedItem | null;
 }
 
 type TabType = "run" | "input" | "output" | "metadata";
 
-export function DetailPanel({ selectedItem }: DetailPanelProps): React.ReactElement | null {
-  const [activeTab, setActiveTab] = useState<TabType>("run");
+interface TabConfig {
+	id: TabType;
+	label: string;
+}
 
-  function formatDuration(ms: number): string {
-    if (ms < 1000) return `${ms}ms`;
-    return `${(ms / 1000).toFixed(1)}s`;
-  }
+const BASIC_TABS: TabConfig[] = [
+	{ id: "run", label: "Run" },
+	{ id: "metadata", label: "Metadata" },
+];
 
-  // Empty state
-  if (!selectedItem) {
-    return (
-      <div className="detail-panel">
-        <div className="detail-empty">
-          <div className="empty-icon">👆</div>
-          <div className="empty-text">Select an item from the trace tree to view details</div>
-        </div>
+const TOOL_TABS: TabConfig[] = [
+	{ id: "run", label: "Run" },
+	{ id: "input", label: "Input" },
+	{ id: "output", label: "Output" },
+	{ id: "metadata", label: "Metadata" },
+];
 
-        <style>{detailPanelStyles}</style>
-      </div>
-    );
-  }
+interface TabButtonsProps {
+	tabs: TabConfig[];
+	activeTab: TabType;
+	onTabChange: (tab: TabType) => void;
+}
 
-  // User Prompt selected (Turn header)
-  if (selectedItem.type === "prompt" && selectedItem.turn) {
-    const turn = selectedItem.turn;
-    const toolSteps = turn.steps.filter(s => s.type === "tool");
-    const assistantSteps = turn.steps.filter(s => s.type === "assistant_text");
+function TabButtons({
+	tabs,
+	activeTab,
+	onTabChange,
+}: TabButtonsProps): ReactElement {
+	return (
+		<div className="detail-tabs">
+			{tabs.map((tab) => (
+				<button
+					key={tab.id}
+					className={`detail-tab ${activeTab === tab.id ? "active" : ""}`}
+					onClick={() => onTabChange(tab.id)}
+				>
+					{tab.label}
+				</button>
+			))}
+		</div>
+	);
+}
 
-    return (
-      <div className="detail-panel">
-        <div className="detail-header">
-          <div className="detail-icon user-icon">👤</div>
-          <div className="detail-title-section">
-            <div className="detail-title">User Prompt</div>
-            <div className="detail-subtitle">
-              {new Date(turn.userPrompt.timestamp).toLocaleString("ko-KR")}
-            </div>
-          </div>
-        </div>
+interface DetailHeaderProps {
+	icon: ReactElement;
+	title: string;
+	subtitle?: string;
+	meta?: string;
+}
 
-        <div className="detail-tabs">
-          <button
-            className={`detail-tab ${activeTab === "run" ? "active" : ""}`}
-            onClick={() => setActiveTab("run")}
-          >
-            Run
-          </button>
-          <button
-            className={`detail-tab ${activeTab === "metadata" ? "active" : ""}`}
-            onClick={() => setActiveTab("metadata")}
-          >
-            Metadata
-          </button>
-        </div>
+function DetailHeader({
+	icon,
+	title,
+	subtitle,
+	meta,
+}: DetailHeaderProps): ReactElement {
+	return (
+		<div className="detail-header">
+			{icon}
+			<div className="detail-title-section">
+				<div className="detail-title">{title}</div>
+				{subtitle && <div className="detail-subtitle">{subtitle}</div>}
+			</div>
+			{meta && <div className="detail-meta">{meta}</div>}
+		</div>
+	);
+}
 
-        <div className="detail-content">
-          {activeTab === "run" && (
-            <>
-              <div className="detail-section">
-                <div className="section-header">
-                  <span className="section-title">User Message</span>
-                  <span className="section-badge human">Human</span>
-                </div>
-                <SmartContentRenderer content={turn.userPrompt.content} />
-              </div>
+interface SectionProps {
+	title: string;
+	badge?: { text: string; variant: string };
+	children: React.ReactNode;
+}
 
-              <div className="detail-section">
-                <div className="section-header">
-                  <span className="section-title">Turn Summary</span>
-                </div>
-                <div className="section-content">
-                  <div className="summary-grid">
-                    <div className="summary-item">
-                      <span className="summary-label">Tools</span>
-                      <span className="summary-value">{toolSteps.length}</span>
-                    </div>
-                    <div className="summary-item">
-                      <span className="summary-label">Responses</span>
-                      <span className="summary-value">{assistantSteps.length}</span>
-                    </div>
-                    <div className="summary-item">
-                      <span className="summary-label">Duration</span>
-                      <span className="summary-value">{formatDuration(turn.endTime - turn.startTime)}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+function Section({ title, badge, children }: SectionProps): ReactElement {
+	return (
+		<div className="detail-section">
+			<div className="section-header">
+				<span className="section-title">{title}</span>
+				{badge && (
+					<span className={`section-badge ${badge.variant}`}>{badge.text}</span>
+				)}
+			</div>
+			{children}
+		</div>
+	);
+}
 
-              {turn.finalResponse && (
-                <div className="detail-section">
-                  <div className="section-header">
-                    <span className="section-title">Final Response</span>
-                    <span className="section-badge success">Complete</span>
-                  </div>
-                  <SmartContentRenderer content={turn.finalResponse.content} />
-                </div>
-              )}
-            </>
-          )}
+function formatMetadata(data: Record<string, unknown>): string {
+	return JSON.stringify(data, null, 2);
+}
 
-          {activeTab === "metadata" && (
-            <div className="detail-section">
-              <div className="section-header">
-                <span className="section-title">Metadata</span>
-              </div>
-              <SmartContentRenderer
-                content={JSON.stringify(
-                  {
-                    id: turn.id,
-                    startTime: `${(turn.startTime / 1000).toFixed(2)}s`,
-                    endTime: `${(turn.endTime / 1000).toFixed(2)}s`,
-                    toolCount: turn.toolCount,
-                    promptTimestamp: turn.userPrompt.timestamp,
-                  },
-                  null,
-                  2
-                )}
-                forceType="json"
-              />
-            </div>
-          )}
-        </div>
+export function DetailPanel({
+	selectedItem,
+}: DetailPanelProps): ReactElement | null {
+	const [activeTab, setActiveTab] = useState<TabType>("run");
 
-        <style>{detailPanelStyles}</style>
-      </div>
-    );
-  }
+	if (!selectedItem) {
+		return (
+			<div className="detail-panel">
+				<div className="detail-empty">
+					<div className="empty-icon">👆</div>
+					<div className="empty-text">
+						Select an item from the trace tree to view details
+					</div>
+				</div>
+				<style>{detailPanelStyles}</style>
+			</div>
+		);
+	}
 
-  // Step selected (Thinking, Assistant text, or Tool)
-  if (selectedItem.type === "step" && selectedItem.step) {
-    const step = selectedItem.step;
+	if (selectedItem.type === "prompt" && selectedItem.turn) {
+		const turn = selectedItem.turn;
+		const toolSteps = turn.steps.filter((s) => s.type === "tool");
+		const assistantSteps = turn.steps.filter(
+			(s) => s.type === "assistant_text",
+		);
+		const timestamp = new Date(turn.userPrompt.timestamp).toLocaleString(
+			"ko-KR",
+		);
 
-    // Thinking step
-    if (step.type === "thinking") {
-      return (
-        <div className="detail-panel">
-          <div className="detail-header">
-            <div className="detail-icon thinking-detail-icon">🧠</div>
-            <div className="detail-title-section">
-              <div className="detail-title">Thinking</div>
-              <div className="detail-subtitle">
-                {new Date(step.timestamp).toLocaleString("ko-KR")}
-              </div>
-            </div>
-          </div>
+		return (
+			<div className="detail-panel">
+				<DetailHeader
+					icon={<div className="detail-icon user-icon">👤</div>}
+					title="User Prompt"
+					subtitle={timestamp}
+				/>
+				<TabButtons
+					tabs={BASIC_TABS}
+					activeTab={activeTab}
+					onTabChange={setActiveTab}
+				/>
 
-          <div className="detail-tabs">
-            <button
-              className={`detail-tab ${activeTab === "run" ? "active" : ""}`}
-              onClick={() => setActiveTab("run")}
-            >
-              Run
-            </button>
-            <button
-              className={`detail-tab ${activeTab === "metadata" ? "active" : ""}`}
-              onClick={() => setActiveTab("metadata")}
-            >
-              Metadata
-            </button>
-          </div>
+				<div className="detail-content">
+					{activeTab === "run" && (
+						<>
+							<Section
+								title="User Message"
+								badge={{ text: "Human", variant: "human" }}
+							>
+								<SmartContentRenderer content={turn.userPrompt.content} />
+							</Section>
 
-          <div className="detail-content">
-            {activeTab === "run" && (
-              <div className="detail-section">
-                <div className="section-header">
-                  <span className="section-title">Thinking Content</span>
-                  <span className="section-badge thinking-badge">Internal</span>
-                </div>
-                <SmartContentRenderer content={step.content} className="thinking-renderer" />
-              </div>
-            )}
+							<Section title="Turn Summary">
+								<div className="section-content">
+									<div className="summary-grid">
+										<div className="summary-item">
+											<span className="summary-label">Tools</span>
+											<span className="summary-value">{toolSteps.length}</span>
+										</div>
+										<div className="summary-item">
+											<span className="summary-label">Responses</span>
+											<span className="summary-value">
+												{assistantSteps.length}
+											</span>
+										</div>
+										<div className="summary-item">
+											<span className="summary-label">Duration</span>
+											<span className="summary-value">
+												{formatDurationMs(turn.endTime - turn.startTime)}
+											</span>
+										</div>
+									</div>
+								</div>
+							</Section>
 
-            {activeTab === "metadata" && (
-              <div className="detail-section">
-                <div className="section-header">
-                  <span className="section-title">Metadata</span>
-                </div>
-                <SmartContentRenderer
-                  content={JSON.stringify(
-                    {
-                      id: step.id,
-                      type: step.type,
-                      startTime: `${(step.startTime / 1000).toFixed(2)}s`,
-                      timestamp: step.timestamp,
-                    },
-                    null,
-                    2
-                  )}
-                  forceType="json"
-                />
-              </div>
-            )}
-          </div>
+							{turn.finalResponse && (
+								<Section
+									title="Final Response"
+									badge={{ text: "Complete", variant: "success" }}
+								>
+									<SmartContentRenderer content={turn.finalResponse.content} />
+								</Section>
+							)}
+						</>
+					)}
 
-          <style>{detailPanelStyles}</style>
-        </div>
-      );
-    }
+					{activeTab === "metadata" && (
+						<Section title="Metadata">
+							<SmartContentRenderer
+								content={formatMetadata({
+									id: turn.id,
+									startTime: `${(turn.startTime / 1000).toFixed(2)}s`,
+									endTime: `${(turn.endTime / 1000).toFixed(2)}s`,
+									toolCount: turn.toolCount,
+									promptTimestamp: turn.userPrompt.timestamp,
+								})}
+								forceType="json"
+							/>
+						</Section>
+					)}
+				</div>
 
-    if (step.type === "assistant_text") {
-      return (
-        <div className="detail-panel">
-          <div className="detail-header">
-            <div className="detail-icon assistant-detail-icon">💬</div>
-            <div className="detail-title-section">
-              <div className="detail-title">Assistant Response</div>
-              <div className="detail-subtitle">
-                {new Date(step.timestamp).toLocaleString("ko-KR")}
-              </div>
-            </div>
-          </div>
+				<style>{detailPanelStyles}</style>
+			</div>
+		);
+	}
 
-          <div className="detail-tabs">
-            <button
-              className={`detail-tab ${activeTab === "run" ? "active" : ""}`}
-              onClick={() => setActiveTab("run")}
-            >
-              Run
-            </button>
-            <button
-              className={`detail-tab ${activeTab === "metadata" ? "active" : ""}`}
-              onClick={() => setActiveTab("metadata")}
-            >
-              Metadata
-            </button>
-          </div>
+	if (selectedItem.type === "step" && selectedItem.step) {
+		const step = selectedItem.step;
+		const timestamp = new Date(step.timestamp).toLocaleString("ko-KR");
 
-          <div className="detail-content">
-            {activeTab === "run" && (
-              <div className="detail-section">
-                <div className="section-header">
-                  <span className="section-title">Response Content</span>
-                  <span className="section-badge assistant-badge">Assistant</span>
-                </div>
-                <SmartContentRenderer content={step.content} />
-              </div>
-            )}
+		if (step.type === "thinking") {
+			return (
+				<div className="detail-panel">
+					<DetailHeader
+						icon={<div className="detail-icon thinking-detail-icon">🧠</div>}
+						title="Thinking"
+						subtitle={timestamp}
+					/>
+					<TabButtons
+						tabs={BASIC_TABS}
+						activeTab={activeTab}
+						onTabChange={setActiveTab}
+					/>
 
-            {activeTab === "metadata" && (
-              <div className="detail-section">
-                <div className="section-header">
-                  <span className="section-title">Metadata</span>
-                </div>
-                <SmartContentRenderer
-                  content={JSON.stringify(
-                    {
-                      id: step.id,
-                      type: step.type,
-                      startTime: `${(step.startTime / 1000).toFixed(2)}s`,
-                      timestamp: step.timestamp,
-                    },
-                    null,
-                    2
-                  )}
-                  forceType="json"
-                />
-              </div>
-            )}
-          </div>
+					<div className="detail-content">
+						{activeTab === "run" && (
+							<Section
+								title="Thinking Content"
+								badge={{ text: "Internal", variant: "thinking-badge" }}
+							>
+								<SmartContentRenderer
+									content={step.content}
+									className="thinking-renderer"
+								/>
+							</Section>
+						)}
 
-          <style>{detailPanelStyles}</style>
-        </div>
-      );
-    }
+						{activeTab === "metadata" && (
+							<Section title="Metadata">
+								<SmartContentRenderer
+									content={formatMetadata({
+										id: step.id,
+										type: step.type,
+										startTime: `${(step.startTime / 1000).toFixed(2)}s`,
+										timestamp: step.timestamp,
+									})}
+									forceType="json"
+								/>
+							</Section>
+						)}
+					</div>
 
-    // Tool step
-    const toolColor = getToolColor(step.toolName || "");
+					<style>{detailPanelStyles}</style>
+				</div>
+			);
+		}
 
-    return (
-      <div className="detail-panel">
-        <div className="detail-header">
-          <div
-            className="detail-icon"
-            style={{
-              backgroundColor: `${toolColor}20`,
-              color: toolColor,
-            }}
-          >
-            {getToolIcon(step.toolName || "")}
-          </div>
-          <div className="detail-title">{step.toolName}</div>
-          <div className="detail-meta">
-            {formatDuration(step.toolDuration || 0)} · {new Date(step.timestamp).toLocaleTimeString("ko-KR")}
-          </div>
-        </div>
+		if (step.type === "assistant_text") {
+			return (
+				<div className="detail-panel">
+					<DetailHeader
+						icon={<div className="detail-icon assistant-detail-icon">💬</div>}
+						title="Assistant Response"
+						subtitle={timestamp}
+					/>
+					<TabButtons
+						tabs={BASIC_TABS}
+						activeTab={activeTab}
+						onTabChange={setActiveTab}
+					/>
 
-        <div className="detail-tabs">
-          <button
-            className={`detail-tab ${activeTab === "run" ? "active" : ""}`}
-            onClick={() => setActiveTab("run")}
-          >
-            Run
-          </button>
-          <button
-            className={`detail-tab ${activeTab === "input" ? "active" : ""}`}
-            onClick={() => setActiveTab("input")}
-          >
-            Input
-          </button>
-          <button
-            className={`detail-tab ${activeTab === "output" ? "active" : ""}`}
-            onClick={() => setActiveTab("output")}
-          >
-            Output
-          </button>
-          <button
-            className={`detail-tab ${activeTab === "metadata" ? "active" : ""}`}
-            onClick={() => setActiveTab("metadata")}
-          >
-            Metadata
-          </button>
-        </div>
+					<div className="detail-content">
+						{activeTab === "run" && (
+							<Section
+								title="Response Content"
+								badge={{ text: "Assistant", variant: "assistant-badge" }}
+							>
+								<SmartContentRenderer content={step.content} />
+							</Section>
+						)}
 
-        <div className="detail-content">
-          {activeTab === "run" && (
-            <>
-              <div className="detail-section">
-                <div className="section-header">
-                  <span className="section-title">Input</span>
-                </div>
-                <SmartContentRenderer content={step.toolInput || "{}"} forceType="json" />
-              </div>
+						{activeTab === "metadata" && (
+							<Section title="Metadata">
+								<SmartContentRenderer
+									content={formatMetadata({
+										id: step.id,
+										type: step.type,
+										startTime: `${(step.startTime / 1000).toFixed(2)}s`,
+										timestamp: step.timestamp,
+									})}
+									forceType="json"
+								/>
+							</Section>
+						)}
+					</div>
 
-              {step.toolOutput && (
-                <div className="detail-section">
-                  <div className="section-header">
-                    <span className="section-title">Output Preview</span>
-                  </div>
-                  <SmartContentRenderer
-                    content={step.toolOutput.length > 2000 ? step.toolOutput.slice(0, 2000) + "\n... (truncated)" : step.toolOutput}
-                  />
-                </div>
-              )}
+					<style>{detailPanelStyles}</style>
+				</div>
+			);
+		}
 
-              <div className="detail-section">
-                <div className="section-header">
-                  <span className="section-title">Status</span>
-                  <span className={`section-badge ${step.isError ? "error" : "success"}`}>
-                    {step.isError ? "Error" : "Success"}
-                  </span>
-                </div>
-                <div className="section-content">
-                  <div className="status-info">
-                    <div className="status-row">
-                      <span className="status-label">Duration</span>
-                      <span className="status-value">{formatDuration(step.toolDuration || 0)}</span>
-                    </div>
-                    <div className="status-row">
-                      <span className="status-label">Start Time</span>
-                      <span className="status-value">{(step.startTime / 1000).toFixed(2)}s</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
+		const toolColor = getToolColor(step.toolName || "");
+		const toolTimestamp = new Date(step.timestamp).toLocaleTimeString("ko-KR");
 
-          {activeTab === "input" && (
-            <div className="detail-section">
-              <div className="section-header">
-                <span className="section-title">Tool Input</span>
-              </div>
-              <SmartContentRenderer content={step.toolInput || "{}"} forceType="json" />
-            </div>
-          )}
+		return (
+			<div className="detail-panel">
+				<DetailHeader
+					icon={
+						<div
+							className="detail-icon"
+							style={{ backgroundColor: `${toolColor}20`, color: toolColor }}
+						>
+							{getToolIcon(step.toolName || "")}
+						</div>
+					}
+					title={step.toolName || "Tool"}
+					meta={`${formatDurationMs(step.toolDuration || 0)} · ${toolTimestamp}`}
+				/>
+				<TabButtons
+					tabs={TOOL_TABS}
+					activeTab={activeTab}
+					onTabChange={setActiveTab}
+				/>
 
-          {activeTab === "output" && (
-            <div className="detail-section">
-              <div className="section-header">
-                <span className="section-title">Tool Output</span>
-                <span className={`section-badge ${step.isError ? "error" : "success"}`}>
-                  {step.isError ? "Error" : "Result"}
-                </span>
-              </div>
-              {step.toolOutput ? (
-                <SmartContentRenderer content={step.toolOutput} />
-              ) : (
-                <div className="section-content">
-                  <div className="empty-output">No output recorded</div>
-                </div>
-              )}
-            </div>
-          )}
+				<div className="detail-content">
+					{activeTab === "run" && (
+						<>
+							<Section title="Input">
+								<SmartContentRenderer
+									content={step.toolInput || "{}"}
+									forceType="json"
+								/>
+							</Section>
 
-          {activeTab === "metadata" && (
-            <div className="detail-section">
-              <div className="section-header">
-                <span className="section-title">Metadata</span>
-              </div>
-              <SmartContentRenderer
-                content={JSON.stringify(
-                  {
-                    id: step.id,
-                    type: step.type,
-                    toolName: step.toolName,
-                    duration: `${step.toolDuration}ms`,
-                    startTime: `${(step.startTime / 1000).toFixed(2)}s`,
-                    isError: step.isError,
-                    timestamp: step.timestamp,
-                  },
-                  null,
-                  2
-                )}
-                forceType="json"
-              />
-            </div>
-          )}
-        </div>
+							{step.toolOutput && (
+								<Section title="Output Preview">
+									<SmartContentRenderer
+										content={
+											step.toolOutput.length > 2000
+												? step.toolOutput.slice(0, 2000) + "\n... (truncated)"
+												: step.toolOutput
+										}
+									/>
+								</Section>
+							)}
 
-        <style>{detailPanelStyles}</style>
-      </div>
-    );
-  }
+							<Section
+								title="Status"
+								badge={{
+									text: step.isError ? "Error" : "Success",
+									variant: step.isError ? "error" : "success",
+								}}
+							>
+								<div className="section-content">
+									<div className="status-info">
+										<div className="status-row">
+											<span className="status-label">Duration</span>
+											<span className="status-value">
+												{formatDurationMs(step.toolDuration || 0)}
+											</span>
+										</div>
+										<div className="status-row">
+											<span className="status-label">Start Time</span>
+											<span className="status-value">
+												{(step.startTime / 1000).toFixed(2)}s
+											</span>
+										</div>
+									</div>
+								</div>
+							</Section>
+						</>
+					)}
 
-  // Final Response selected
-  if (selectedItem.type === "finalResponse" && selectedItem.finalResponse) {
-    const response = selectedItem.finalResponse;
-    return (
-      <div className="detail-panel">
-        <div className="detail-header">
-          <div className="detail-icon final-detail-icon">✅</div>
-          <div className="detail-title-section">
-            <div className="detail-title">Final Response</div>
-            <div className="detail-subtitle">
-              {new Date(response.timestamp).toLocaleString("ko-KR")}
-            </div>
-          </div>
-        </div>
+					{activeTab === "input" && (
+						<Section title="Tool Input">
+							<SmartContentRenderer
+								content={step.toolInput || "{}"}
+								forceType="json"
+							/>
+						</Section>
+					)}
 
-        <div className="detail-tabs">
-          <button
-            className={`detail-tab ${activeTab === "run" ? "active" : ""}`}
-            onClick={() => setActiveTab("run")}
-          >
-            Run
-          </button>
-          <button
-            className={`detail-tab ${activeTab === "metadata" ? "active" : ""}`}
-            onClick={() => setActiveTab("metadata")}
-          >
-            Metadata
-          </button>
-        </div>
+					{activeTab === "output" && (
+						<Section
+							title="Tool Output"
+							badge={{
+								text: step.isError ? "Error" : "Result",
+								variant: step.isError ? "error" : "success",
+							}}
+						>
+							{step.toolOutput ? (
+								<SmartContentRenderer content={step.toolOutput} />
+							) : (
+								<div className="section-content">
+									<div className="empty-output">No output recorded</div>
+								</div>
+							)}
+						</Section>
+					)}
 
-        <div className="detail-content">
-          {activeTab === "run" && (
-            <div className="detail-section">
-              <div className="section-header">
-                <span className="section-title">Response Content</span>
-                <span className="section-badge success">Final</span>
-              </div>
-              <SmartContentRenderer content={response.content} />
-            </div>
-          )}
+					{activeTab === "metadata" && (
+						<Section title="Metadata">
+							<SmartContentRenderer
+								content={formatMetadata({
+									id: step.id,
+									type: step.type,
+									toolName: step.toolName,
+									duration: `${step.toolDuration}ms`,
+									startTime: `${(step.startTime / 1000).toFixed(2)}s`,
+									isError: step.isError,
+									timestamp: step.timestamp,
+								})}
+								forceType="json"
+							/>
+						</Section>
+					)}
+				</div>
 
-          {activeTab === "metadata" && (
-            <div className="detail-section">
-              <div className="section-header">
-                <span className="section-title">Metadata</span>
-              </div>
-              <SmartContentRenderer
-                content={JSON.stringify(
-                  {
-                    id: response.id,
-                    timestamp: response.timestamp,
-                  },
-                  null,
-                  2
-                )}
-                forceType="json"
-              />
-            </div>
-          )}
-        </div>
+				<style>{detailPanelStyles}</style>
+			</div>
+		);
+	}
 
-        <style>{detailPanelStyles}</style>
-      </div>
-    );
-  }
+	if (selectedItem.type === "finalResponse" && selectedItem.finalResponse) {
+		const response = selectedItem.finalResponse;
+		const timestamp = new Date(response.timestamp).toLocaleString("ko-KR");
 
-  return null;
+		return (
+			<div className="detail-panel">
+				<DetailHeader
+					icon={<div className="detail-icon final-detail-icon">✅</div>}
+					title="Final Response"
+					subtitle={timestamp}
+				/>
+				<TabButtons
+					tabs={BASIC_TABS}
+					activeTab={activeTab}
+					onTabChange={setActiveTab}
+				/>
+
+				<div className="detail-content">
+					{activeTab === "run" && (
+						<Section
+							title="Response Content"
+							badge={{ text: "Final", variant: "success" }}
+						>
+							<SmartContentRenderer content={response.content} />
+						</Section>
+					)}
+
+					{activeTab === "metadata" && (
+						<Section title="Metadata">
+							<SmartContentRenderer
+								content={formatMetadata({
+									id: response.id,
+									timestamp: response.timestamp,
+								})}
+								forceType="json"
+							/>
+						</Section>
+					)}
+				</div>
+
+				<style>{detailPanelStyles}</style>
+			</div>
+		);
+	}
+
+	return null;
 }
 
 const detailPanelStyles = `

@@ -3,186 +3,227 @@ import { TraceTree, type SelectedItem } from "../components/TraceTree.tsx";
 import { DetailPanel } from "../components/DetailPanel.tsx";
 import { CompactTimeline } from "../components/CompactTimeline.tsx";
 import { CollapsibleSidebar } from "../components/CollapsibleSidebar.tsx";
-import { formatDuration, formatTokens, formatSessionId, copyToClipboard } from "../utils/format.ts";
+import {
+	formatDuration,
+	formatTokens,
+	formatSessionId,
+	copyToClipboard,
+} from "../utils/format.ts";
 import type { TimelineData, Session } from "../types/timeline.ts";
 
 interface SessionDetailProps {
-  sessionId: string;
-  onBack: () => void;
+	sessionId: string;
+	onBack: () => void;
 }
 
-export function SessionDetail({ sessionId, onBack }: SessionDetailProps): React.ReactElement {
-  const [session, setSession] = useState<Session | null>(null);
-  const [timelineData, setTimelineData] = useState<TimelineData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [copiedId, setCopiedId] = useState(false);
+export function SessionDetail({
+	sessionId,
+	onBack,
+}: SessionDetailProps): React.ReactElement {
+	const [session, setSession] = useState<Session | null>(null);
+	const [timelineData, setTimelineData] = useState<TimelineData | null>(null);
+	const [loading, setLoading] = useState(true);
+	const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null);
+	const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+	const [copiedId, setCopiedId] = useState(false);
 
-  useEffect(() => {
-    fetchData();
-  }, [sessionId]);
+	useEffect(() => {
+		fetchData();
+	}, [sessionId]);
 
-  async function fetchData() {
-    try {
-      const [sessionRes, timelineRes] = await Promise.all([
-        fetch(`/api/sessions/${sessionId}`),
-        fetch(`/api/timeline/${sessionId}`),
-      ]);
+	async function fetchData() {
+		try {
+			const [sessionRes, timelineRes] = await Promise.all([
+				fetch(`/api/sessions/${sessionId}`),
+				fetch(`/api/timeline/${sessionId}`),
+			]);
 
-      const sessionData = await sessionRes.json();
-      const tlData = await timelineRes.json();
+			const sessionData = await sessionRes.json();
+			const tlData = await timelineRes.json();
 
-      setSession(sessionData);
-      setTimelineData(tlData);
-    } catch (error) {
-      console.error("Failed to fetch data:", error);
-    } finally {
-      setLoading(false);
-    }
-  }
+			setSession(sessionData);
+			setTimelineData(tlData);
+		} catch (error) {
+			console.error("Failed to fetch data:", error);
+		} finally {
+			setLoading(false);
+		}
+	}
 
-  // Calculate max duration for duration bars
-  const maxDuration = useMemo(() => {
-    if (!timelineData) return 1000;
+	// Calculate max duration for duration bars
+	const maxDuration = useMemo(() => {
+		if (!timelineData) return 1000;
 
-    let max = 0;
-    for (const lane of timelineData.lanes) {
-      for (const turn of lane.turns) {
-        const turnToolDuration = turn.steps
-          .filter(s => s.type === "tool")
-          .reduce((sum, s) => sum + (s.toolDuration || 0), 0);
-        if (turnToolDuration > max) max = turnToolDuration;
-      }
-    }
-    return max || 1000;
-  }, [timelineData]);
+		let max = 0;
+		for (const lane of timelineData.lanes) {
+			for (const turn of lane.turns) {
+				const turnToolDuration = turn.steps
+					.filter((s) => s.type === "tool")
+					.reduce((sum, s) => sum + (s.toolDuration || 0), 0);
+				if (turnToolDuration > max) max = turnToolDuration;
+			}
+		}
+		return max || 1000;
+	}, [timelineData]);
 
-  // Handle ID copy
-  async function handleCopyId() {
-    const success = await copyToClipboard(sessionId);
-    if (success) {
-      setCopiedId(true);
-      setTimeout(() => setCopiedId(false), 2000);
-    }
-  }
+	// Handle ID copy
+	async function handleCopyId() {
+		const success = await copyToClipboard(sessionId);
+		if (success) {
+			setCopiedId(true);
+			setTimeout(() => setCopiedId(false), 2000);
+		}
+	}
 
-  if (loading) {
-    return (
-      <div className="loading-container">
-        <div className="loading-spinner" />
-        <p>Loading session...</p>
-      </div>
-    );
-  }
+	if (loading) {
+		return (
+			<div className="loading-container">
+				<div className="loading-spinner" />
+				<p>Loading session...</p>
+			</div>
+		);
+	}
 
-  if (!session) {
-    return (
-      <div className="error-container">
-        <p>Session not found</p>
-        <button className="btn btn-primary" onClick={onBack}>Go Back</button>
-      </div>
-    );
-  }
+	if (!session) {
+		return (
+			<div className="error-container">
+				<p>Session not found</p>
+				<button className="btn btn-primary" onClick={onBack}>
+					Go Back
+				</button>
+			</div>
+		);
+	}
 
-  return (
-    <div className="session-detail-v2">
-      {/* Header */}
-      <header className="session-header-v2">
-        <div className="header-left">
-          <div className="session-title">
-            <div className="session-icon">⚡</div>
-            <span className="session-name">{session.projectName}</span>
-          </div>
-          <button
-            className={`session-id-btn ${copiedId ? "copied" : ""}`}
-            onClick={handleCopyId}
-            title="Copy full session ID"
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-            </svg>
-            {copiedId ? "Copied!" : formatSessionId(sessionId, "short")}
-          </button>
-          <div className="header-tabs">
-            <button className="header-tab active">Run</button>
-            <button className="header-tab">Feedback</button>
-            <button className="header-tab">Metadata</button>
-          </div>
-        </div>
-        <div className="header-right">
-          <div className="session-stats">
-            <div className="mini-stat">
-              <span className="mini-stat-icon duration">⏱</span>
-              <span className="mini-stat-value">{formatDuration(session.totalDurationMs)}</span>
-            </div>
-            <div className="mini-stat">
-              <span className="mini-stat-icon tokens">◈</span>
-              <span className="mini-stat-value">{formatTokens(session.inputTokens + session.outputTokens)}</span>
-            </div>
-            <div className="mini-stat">
-              <span className="mini-stat-icon tools">⚙</span>
-              <span className="mini-stat-value">{session.toolCallCount}</span>
-            </div>
-          </div>
-          <button className="btn btn-ghost" onClick={() => fetchData()}>
-            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-          </button>
-          <button className="btn btn-ghost" onClick={onBack}>
-            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            Back
-          </button>
-        </div>
-      </header>
+	return (
+		<div className="session-detail-v2">
+			{/* Header */}
+			<header className="session-header-v2">
+				<div className="header-left">
+					<div className="session-title">
+						<div className="session-icon">⚡</div>
+						<span className="session-name">{session.projectName}</span>
+					</div>
+					<button
+						className={`session-id-btn ${copiedId ? "copied" : ""}`}
+						onClick={handleCopyId}
+						title="Copy full session ID"
+					>
+						<svg
+							width="12"
+							height="12"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="2"
+						>
+							<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+							<path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+						</svg>
+						{copiedId ? "Copied!" : formatSessionId(sessionId, "short")}
+					</button>
+					<div className="header-tabs">
+						<button className="header-tab active">Run</button>
+						<button className="header-tab">Feedback</button>
+						<button className="header-tab">Metadata</button>
+					</div>
+				</div>
+				<div className="header-right">
+					<div className="session-stats">
+						<div className="mini-stat">
+							<span className="mini-stat-icon duration">⏱</span>
+							<span className="mini-stat-value">
+								{formatDuration(session.totalDurationMs)}
+							</span>
+						</div>
+						<div className="mini-stat">
+							<span className="mini-stat-icon tokens">◈</span>
+							<span className="mini-stat-value">
+								{formatTokens(session.inputTokens + session.outputTokens)}
+							</span>
+						</div>
+						<div className="mini-stat">
+							<span className="mini-stat-icon tools">⚙</span>
+							<span className="mini-stat-value">{session.toolCallCount}</span>
+						</div>
+					</div>
+					<button className="btn btn-ghost" onClick={() => fetchData()}>
+						<svg
+							width="14"
+							height="14"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+						>
+							<path
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								strokeWidth={2}
+								d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+							/>
+						</svg>
+					</button>
+					<button className="btn btn-ghost" onClick={onBack}>
+						<svg
+							width="14"
+							height="14"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+						>
+							<path
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								strokeWidth={2}
+								d="M10 19l-7-7m0 0l7-7m-7 7h18"
+							/>
+						</svg>
+						Back
+					</button>
+				</div>
+			</header>
 
-      {/* Main Content Area */}
-      <div className="content-wrapper">
-        {/* Collapsible Sidebar with Tree View */}
-        <CollapsibleSidebar
-          collapsed={sidebarCollapsed}
-          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-          title="TRACE TREE"
-        >
-          {timelineData ? (
-            <TraceTree
-              data={timelineData}
-              maxDuration={maxDuration}
-              onSelect={setSelectedItem}
-              selectedItem={selectedItem}
-            />
-          ) : (
-            <div className="loading-panel">Loading trace...</div>
-          )}
-        </CollapsibleSidebar>
+			{/* Main Content Area */}
+			<div className="content-wrapper">
+				<CollapsibleSidebar
+					collapsed={sidebarCollapsed}
+					onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+				>
+					{timelineData ? (
+						<TraceTree
+							data={timelineData}
+							maxDuration={maxDuration}
+							onSelect={setSelectedItem}
+							selectedItem={selectedItem}
+						/>
+					) : (
+						<div className="loading-panel">Loading trace...</div>
+					)}
+				</CollapsibleSidebar>
 
-        {/* Main Area: Timeline + Detail */}
-        <main className="main-area">
-          {/* Compact Timeline Section */}
-          <section className="compact-timeline-section">
-            {timelineData ? (
-              <CompactTimeline
-                data={timelineData}
-                onSelect={setSelectedItem}
-                selectedItem={selectedItem}
-              />
-            ) : (
-              <div className="loading-panel">Loading timeline...</div>
-            )}
-          </section>
+				{/* Main Area: Timeline + Detail */}
+				<main className="main-area">
+					{/* Compact Timeline Section */}
+					<section className="compact-timeline-section">
+						{timelineData ? (
+							<CompactTimeline
+								data={timelineData}
+								onSelect={setSelectedItem}
+								selectedItem={selectedItem}
+							/>
+						) : (
+							<div className="loading-panel">Loading timeline...</div>
+						)}
+					</section>
 
-          {/* Detail Panel (always visible) */}
-          <section className="detail-section">
-            <DetailPanel selectedItem={selectedItem} />
-          </section>
-        </main>
-      </div>
+					{/* Detail Panel (always visible) */}
+					<section className="detail-section">
+						<DetailPanel selectedItem={selectedItem} />
+					</section>
+				</main>
+			</div>
 
-      <style>{`
+			<style>{`
         .session-detail-v2 {
           display: flex;
           flex-direction: column;
@@ -428,6 +469,6 @@ export function SessionDetail({ sessionId, onBack }: SessionDetailProps): React.
           font-size: 13px;
         }
       `}</style>
-    </div>
-  );
+		</div>
+	);
 }

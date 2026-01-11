@@ -1,340 +1,347 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, type ReactElement } from "react";
 import { getToolIcon, getToolColor } from "../constants/tools.ts";
+import { formatDurationMs } from "../utils/format.ts";
 import type {
-  Turn,
-  TurnStep,
-  TimelineLane,
-  TimelineData,
-  PromptBlock,
-  AssistantMessage,
+	Turn,
+	TurnStep,
+	TimelineLane,
+	TimelineData,
+	AssistantMessage,
 } from "../types/timeline.ts";
 
 export interface SelectedItem {
-  type: "prompt" | "step" | "finalResponse" | "turn";
-  turn?: Turn;
-  step?: TurnStep;
-  finalResponse?: AssistantMessage;
-  lane?: TimelineLane;
+	type: "prompt" | "step" | "finalResponse" | "turn";
+	turn?: Turn;
+	step?: TurnStep;
+	finalResponse?: AssistantMessage;
+	lane?: TimelineLane;
 }
 
 interface TraceTreeProps {
-  data: TimelineData;
-  maxDuration: number;
-  onSelect?: (item: SelectedItem) => void;
-  selectedItem?: SelectedItem | null;
+	data: TimelineData;
+	maxDuration: number;
+	onSelect?: (item: SelectedItem) => void;
+	selectedItem?: SelectedItem | null;
 }
 
-export function TraceTree({ data, maxDuration, onSelect, selectedItem }: TraceTreeProps): React.ReactElement {
-  const contentRef = useRef<HTMLDivElement>(null);
-  const [expandedTurns, setExpandedTurns] = useState<Set<string>>(new Set(
-    // Expand all turns by default
-    data.lanes.flatMap(lane => lane.turns.map(t => t.id))
-  ));
+function getDurationClass(ms: number, maxDuration: number): string {
+	const ratio = ms / maxDuration;
+	if (ratio < 0.3) return "fast";
+	if (ratio < 0.6) return "medium";
+	return "slow";
+}
 
-  // Scroll to selected item when selection changes
-  // Position at top with slight margin (~20px from top of visible area)
-  useEffect(() => {
-    const turnId = selectedItem?.turn?.id;
-    const stepId = selectedItem?.step?.id;
-    const finalResponseId = selectedItem?.finalResponse?.id;
+function getDurationWidth(ms: number, maxDuration: number): number {
+	return Math.max(5, Math.min(100, (ms / maxDuration) * 100));
+}
 
-    if (!contentRef.current) return;
+function getTurnToolDuration(turn: Turn): number {
+	return turn.steps
+		.filter((s) => s.type === "tool")
+		.reduce((sum, s) => sum + (s.toolDuration || 0), 0);
+}
 
-    let targetElement: HTMLElement | null = null;
+export function TraceTree({
+	data,
+	maxDuration,
+	onSelect,
+	selectedItem,
+}: TraceTreeProps): ReactElement {
+	const contentRef = useRef<HTMLDivElement>(null);
+	const [expandedTurns, setExpandedTurns] = useState<Set<string>>(
+		() => new Set(data.lanes.flatMap((lane) => lane.turns.map((t) => t.id))),
+	);
 
-    // Find the specific element to scroll to
-    if (stepId) {
-      // Look for step element within the turn
-      targetElement = contentRef.current.querySelector(
-        `[data-turn-id="${turnId}"] .step-item`
-      ) as HTMLElement;
-      // Try to find the actual selected step
-      const allSteps = contentRef.current.querySelectorAll(`[data-turn-id="${turnId}"] .step-item`);
-      allSteps.forEach((el) => {
-        if (el.classList.contains('selected')) {
-          targetElement = el as HTMLElement;
-        }
-      });
-    } else if (finalResponseId) {
-      targetElement = contentRef.current.querySelector(
-        `[data-turn-id="${turnId}"] .final-response`
-      ) as HTMLElement;
-    } else if (turnId) {
-      targetElement = contentRef.current.querySelector(
-        `[data-turn-id="${turnId}"]`
-      ) as HTMLElement;
-    }
+	useEffect(() => {
+		if (!contentRef.current || !selectedItem) return;
 
-    if (targetElement) {
-      const container = contentRef.current;
-      const containerRect = container.getBoundingClientRect();
-      const targetRect = targetElement.getBoundingClientRect();
+		const turnId = selectedItem.turn?.id;
+		const stepId = selectedItem.step?.id;
+		const finalResponseId = selectedItem.finalResponse?.id;
 
-      // Calculate target scroll position (element at top with 20px margin)
-      const targetScrollTop = container.scrollTop + (targetRect.top - containerRect.top) - 20;
+		let targetElement: HTMLElement | null = null;
 
-      container.scrollTo({
-        top: Math.max(0, targetScrollTop),
-        behavior: "smooth",
-      });
-    }
-  }, [selectedItem?.turn?.id, selectedItem?.step?.id, selectedItem?.finalResponse?.id]);
+		if (stepId) {
+			const selectedStep = contentRef.current.querySelector(
+				`[data-turn-id="${turnId}"] .step-item.selected`,
+			);
+			targetElement =
+				(selectedStep as HTMLElement) ||
+				contentRef.current.querySelector(
+					`[data-turn-id="${turnId}"] .step-item`,
+				);
+		} else if (finalResponseId) {
+			targetElement = contentRef.current.querySelector(
+				`[data-turn-id="${turnId}"] .final-response`,
+			) as HTMLElement;
+		} else if (turnId) {
+			targetElement = contentRef.current.querySelector(
+				`[data-turn-id="${turnId}"]`,
+			) as HTMLElement;
+		}
 
-  // Get main lane and sub-agent lanes
-  const { mainLane, subAgentLanes } = useMemo(() => {
-    const main = data.lanes.find(l => l.id === "main") || data.lanes[0];
-    const subAgents = data.lanes.filter(l => l.id !== "main" && l.id !== main?.id);
-    return { mainLane: main, subAgentLanes: subAgents };
-  }, [data.lanes]);
+		if (targetElement) {
+			const container = contentRef.current;
+			const containerRect = container.getBoundingClientRect();
+			const targetRect = targetElement.getBoundingClientRect();
+			const targetScrollTop =
+				container.scrollTop + (targetRect.top - containerRect.top) - 20;
 
-  function toggleTurn(turnId: string) {
-    setExpandedTurns(prev => {
-      const next = new Set(prev);
-      if (next.has(turnId)) {
-        next.delete(turnId);
-      } else {
-        next.add(turnId);
-      }
-      return next;
-    });
-  }
+			container.scrollTo({
+				top: Math.max(0, targetScrollTop),
+				behavior: "smooth",
+			});
+		}
+	}, [selectedItem]);
 
-  const allTurnIds = useMemo(() =>
-    data.lanes.flatMap(lane => lane.turns.map(t => t.id)),
-    [data.lanes]
-  );
+	const { mainLane, subAgentLanes } = useMemo(() => {
+		const main = data.lanes.find((l) => l.id === "main") || data.lanes[0];
+		const subAgents = data.lanes.filter(
+			(l) => l.id !== "main" && l.id !== main?.id,
+		);
+		return { mainLane: main, subAgentLanes: subAgents };
+	}, [data.lanes]);
 
-  const allExpanded = allTurnIds.length > 0 && allTurnIds.every(id => expandedTurns.has(id));
+	const allTurnIds = useMemo(
+		() => data.lanes.flatMap((lane) => lane.turns.map((t) => t.id)),
+		[data.lanes],
+	);
 
-  function toggleAllExpanded() {
-    if (allExpanded) {
-      setExpandedTurns(new Set());
-    } else {
-      setExpandedTurns(new Set(allTurnIds));
-    }
-  }
+	const allExpanded =
+		allTurnIds.length > 0 && allTurnIds.every((id) => expandedTurns.has(id));
 
-  function formatDuration(ms: number): string {
-    if (ms < 1000) return `${ms}ms`;
-    return `${(ms / 1000).toFixed(1)}s`;
-  }
+	function toggleTurn(turnId: string): void {
+		setExpandedTurns((prev) => {
+			const next = new Set(prev);
+			if (next.has(turnId)) {
+				next.delete(turnId);
+			} else {
+				next.add(turnId);
+			}
+			return next;
+		});
+	}
 
-  function getDurationClass(ms: number): string {
-    const ratio = ms / maxDuration;
-    if (ratio < 0.3) return "fast";
-    if (ratio < 0.6) return "medium";
-    return "slow";
-  }
+	function toggleAllExpanded(): void {
+		setExpandedTurns(allExpanded ? new Set() : new Set(allTurnIds));
+	}
 
-  function getDurationWidth(ms: number): number {
-    return Math.max(5, Math.min(100, (ms / maxDuration) * 100));
-  }
+	function isItemSelected(type: string, id: string): boolean {
+		if (!selectedItem) return false;
 
-  function isItemSelected(type: string, id: string): boolean {
-    if (!selectedItem) return false;
-    if (type === "prompt" && selectedItem.type === "prompt") {
-      return selectedItem.turn?.id === id;
-    }
-    if (type === "step" && selectedItem.type === "step") {
-      return selectedItem.step?.id === id;
-    }
-    if (type === "finalResponse" && selectedItem.type === "finalResponse") {
-      return selectedItem.finalResponse?.id === id;
-    }
-    return false;
-  }
+		switch (type) {
+			case "prompt":
+				return selectedItem.type === "prompt" && selectedItem.turn?.id === id;
+			case "step":
+				return selectedItem.type === "step" && selectedItem.step?.id === id;
+			case "finalResponse":
+				return (
+					selectedItem.type === "finalResponse" &&
+					selectedItem.finalResponse?.id === id
+				);
+			default:
+				return false;
+		}
+	}
 
-  // Calculate total tool duration for each turn
-  function getTurnToolDuration(turn: Turn): number {
-    return turn.steps
-      .filter(s => s.type === "tool")
-      .reduce((sum, s) => sum + (s.toolDuration || 0), 0);
-  }
+	function renderStep(
+		step: TurnStep,
+		turn: Turn,
+		lane: TimelineLane,
+	): ReactElement {
+		const isSelected = isItemSelected("step", step.id);
+		const handleClick = (e: React.MouseEvent): void => {
+			e.stopPropagation();
+			onSelect?.({ type: "step", step, turn, lane });
+		};
 
-  function renderStep(step: TurnStep, turn: Turn, lane: TimelineLane) {
-    if (step.type === "thinking") {
-      return (
-        <div
-          key={step.id}
-          className={`step-item thinking-step ${isItemSelected("step", step.id) ? "selected" : ""}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            onSelect?.({ type: "step", step, turn, lane });
-          }}
-        >
-          <div className="step-icon thinking-icon">🧠</div>
-          <div className="step-content">
-            <div className="step-type thinking-label">Thinking</div>
-            <div className="step-text">{step.content}</div>
-          </div>
-        </div>
-      );
-    }
+		if (step.type === "thinking") {
+			return (
+				<div
+					key={step.id}
+					className={`step-item thinking-step ${isSelected ? "selected" : ""}`}
+					onClick={handleClick}
+				>
+					<div className="step-icon thinking-icon">🧠</div>
+					<div className="step-content">
+						<div className="step-type thinking-label">Thinking</div>
+						<div className="step-text">{step.content}</div>
+					</div>
+				</div>
+			);
+		}
 
-    if (step.type === "assistant_text") {
-      return (
-        <div
-          key={step.id}
-          className={`step-item assistant-step ${isItemSelected("step", step.id) ? "selected" : ""}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            onSelect?.({ type: "step", step, turn, lane });
-          }}
-        >
-          <div className="step-icon assistant-icon">💬</div>
-          <div className="step-content">
-            <div className="step-type">Assistant</div>
-            <div className="step-text">{step.content}</div>
-          </div>
-        </div>
-      );
-    }
+		if (step.type === "assistant_text") {
+			return (
+				<div
+					key={step.id}
+					className={`step-item assistant-step ${isSelected ? "selected" : ""}`}
+					onClick={handleClick}
+				>
+					<div className="step-icon assistant-icon">💬</div>
+					<div className="step-content">
+						<div className="step-type">Assistant</div>
+						<div className="step-text">{step.content}</div>
+					</div>
+				</div>
+			);
+		}
 
-    // Tool step
-    const toolColor = getToolColor(step.toolName || "");
-    return (
-      <div
-        key={step.id}
-        className={`step-item tool-step ${step.isError ? "error" : ""} ${isItemSelected("step", step.id) ? "selected" : ""}`}
-        onClick={(e) => {
-          e.stopPropagation();
-          onSelect?.({ type: "step", step, turn, lane });
-        }}
-      >
-        <div
-          className="step-icon tool-icon"
-          style={{
-            backgroundColor: `${toolColor}20`,
-            color: toolColor,
-          }}
-        >
-          {getToolIcon(step.toolName || "")}
-        </div>
-        <div className="step-content">
-          <div className="step-name">{step.toolName}</div>
-          <div className="step-input">{step.toolInput || "-"}</div>
-        </div>
-        <div className="step-duration">{formatDuration(step.toolDuration || 0)}</div>
-      </div>
-    );
-  }
+		const toolColor = getToolColor(step.toolName || "");
+		return (
+			<div
+				key={step.id}
+				className={`step-item tool-step ${step.isError ? "error" : ""} ${isSelected ? "selected" : ""}`}
+				onClick={handleClick}
+			>
+				<div
+					className="step-icon tool-icon"
+					style={{ backgroundColor: `${toolColor}20`, color: toolColor }}
+				>
+					{getToolIcon(step.toolName || "")}
+				</div>
+				<div className="step-content">
+					<div className="step-name">{step.toolName}</div>
+					<div className="step-input">{step.toolInput || "-"}</div>
+				</div>
+				<div className="step-duration">
+					{formatDurationMs(step.toolDuration || 0)}
+				</div>
+			</div>
+		);
+	}
 
-  function renderTurn(turn: Turn, lane: TimelineLane) {
-    const isExpanded = expandedTurns.has(turn.id);
-    const toolDuration = getTurnToolDuration(turn);
-    const assistantSteps = turn.steps.filter(s => s.type === "assistant_text");
-    const toolSteps = turn.steps.filter(s => s.type === "tool");
+	function renderTurn(turn: Turn, lane: TimelineLane): ReactElement {
+		const isExpanded = expandedTurns.has(turn.id);
+		const toolDuration = getTurnToolDuration(turn);
+		const assistantSteps = turn.steps.filter(
+			(s) => s.type === "assistant_text",
+		);
+		const toolSteps = turn.steps.filter((s) => s.type === "tool");
 
-    return (
-      <div key={turn.id} data-turn-id={turn.id} className="turn-section">
-        {/* Turn Header (User Prompt) */}
-        <div
-          className={`turn-header ${isItemSelected("prompt", turn.id) ? "selected" : ""}`}
-          onClick={() => onSelect?.({ type: "prompt", turn, lane })}
-        >
-          <div
-            className={`turn-toggle ${isExpanded ? "expanded" : ""}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleTurn(turn.id);
-            }}
-          >▶</div>
-          <div className="turn-icon">👤</div>
-          <div className="turn-content">
-            <div className="turn-text">"{turn.userPrompt.content}"</div>
-            <div className="turn-meta">
-              <span>{toolSteps.length} tools</span>
-              {assistantSteps.length > 0 && (
-                <span className="assistant-count">{assistantSteps.length} responses</span>
-              )}
-            </div>
-          </div>
-          <div className="duration-bar-container">
-            <div className="duration-value">{formatDuration(toolDuration)}</div>
-            <div className="duration-bar">
-              <div
-                className={`duration-bar-fill ${getDurationClass(toolDuration)}`}
-                style={{ width: `${getDurationWidth(toolDuration)}%` }}
-              />
-            </div>
-          </div>
-        </div>
+		return (
+			<div key={turn.id} data-turn-id={turn.id} className="turn-section">
+				<div
+					className={`turn-header ${isItemSelected("prompt", turn.id) ? "selected" : ""}`}
+					onClick={() => onSelect?.({ type: "prompt", turn, lane })}
+				>
+					<div
+						className={`turn-toggle ${isExpanded ? "expanded" : ""}`}
+						onClick={(e) => {
+							e.stopPropagation();
+							toggleTurn(turn.id);
+						}}
+					>
+						▶
+					</div>
+					<div className="turn-icon">👤</div>
+					<div className="turn-content">
+						<div className="turn-text">"{turn.userPrompt.content}"</div>
+						<div className="turn-meta">
+							<span>{toolSteps.length} tools</span>
+							{assistantSteps.length > 0 && (
+								<span className="assistant-count">
+									{assistantSteps.length} responses
+								</span>
+							)}
+						</div>
+					</div>
+					<div className="duration-bar-container">
+						<div className="duration-value">
+							{formatDurationMs(toolDuration)}
+						</div>
+						<div className="duration-bar">
+							<div
+								className={`duration-bar-fill ${getDurationClass(toolDuration, maxDuration)}`}
+								style={{
+									width: `${getDurationWidth(toolDuration, maxDuration)}%`,
+								}}
+							/>
+						</div>
+					</div>
+				</div>
 
-        {/* Steps (expanded content) */}
-        {isExpanded && (
-          <div className="steps-list">
-            {turn.steps.map(step => renderStep(step, turn, lane))}
+				{isExpanded && (
+					<div className="steps-list">
+						{turn.steps.map((step) => renderStep(step, turn, lane))}
 
-            {/* Final Response */}
-            {turn.finalResponse && (
-              <div
-                className={`step-item final-response ${isItemSelected("finalResponse", turn.finalResponse.id) ? "selected" : ""}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSelect?.({ type: "finalResponse", finalResponse: turn.finalResponse!, turn, lane });
-                }}
-              >
-                <div className="step-icon final-icon">✅</div>
-                <div className="step-content">
-                  <div className="step-type final-label">Final Response</div>
-                  <div className="step-text final-text">{turn.finalResponse.content}</div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    );
-  }
+						{turn.finalResponse && (
+							<div
+								className={`step-item final-response ${isItemSelected("finalResponse", turn.finalResponse.id) ? "selected" : ""}`}
+								onClick={(e) => {
+									e.stopPropagation();
+									onSelect?.({
+										type: "finalResponse",
+										finalResponse: turn.finalResponse!,
+										turn,
+										lane,
+									});
+								}}
+							>
+								<div className="step-icon final-icon">✅</div>
+								<div className="step-content">
+									<div className="step-type final-label">Final Response</div>
+									<div className="step-text final-text">
+										{turn.finalResponse.content}
+									</div>
+								</div>
+							</div>
+						)}
+					</div>
+				)}
+			</div>
+		);
+	}
 
-  return (
-    <div className="trace-tree-container">
-      {/* Header - matches Timeline style */}
-      <div className="trace-tree-header">
-        <span className="trace-tree-title">Trace Tree</span>
-        <button
-          className="expand-toggle-btn"
-          onClick={toggleAllExpanded}
-          title={allExpanded ? "Collapse All" : "Expand All"}
-        >
-          {allExpanded ? "⊟" : "⊞"}
-        </button>
-      </div>
+	return (
+		<div className="trace-tree-container">
+			<div className="trace-tree-header">
+				<span className="trace-tree-title">Trace Tree</span>
+				<button
+					className="expand-toggle-btn"
+					onClick={toggleAllExpanded}
+					title={allExpanded ? "Collapse All" : "Expand All"}
+				>
+					{allExpanded ? "⊟" : "⊞"}
+				</button>
+			</div>
 
-      <div className="trace-tree-content" ref={contentRef}>
-        {!mainLane || mainLane.turns.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-icon">📋</div>
-            <div className="empty-text">No turns found</div>
-          </div>
-        ) : (
-          <>
-            {/* Main Lane */}
-            <div className="lane-section">
-              <div className="lane-header">
-                <div className="lane-icon main">●</div>
-                <div className="lane-name">{mainLane.name}</div>
-                <div className="lane-turn-count">{mainLane.turns.length} turns</div>
-              </div>
-              {mainLane.turns.map(turn => renderTurn(turn, mainLane))}
-            </div>
+			<div className="trace-tree-content" ref={contentRef}>
+				{!mainLane || mainLane.turns.length === 0 ? (
+					<div className="empty-state">
+						<div className="empty-icon">📋</div>
+						<div className="empty-text">No turns found</div>
+					</div>
+				) : (
+					<>
+						<div className="lane-section">
+							<div className="lane-header">
+								<div className="lane-icon main">●</div>
+								<div className="lane-name">{mainLane.name}</div>
+								<div className="lane-turn-count">
+									{mainLane.turns.length} turns
+								</div>
+							</div>
+							{mainLane.turns.map((turn) => renderTurn(turn, mainLane))}
+						</div>
 
-            {/* Sub-agent Lanes */}
-            {subAgentLanes.map(lane => (
-              <div key={lane.id} className="lane-section subagent-lane">
-                <div className="lane-header subagent">
-                  <div className="lane-icon subagent">🤖</div>
-                  <div className="lane-name">{lane.name}</div>
-                  <div className="lane-turn-count">{lane.turns.length} turns</div>
-                </div>
-                {lane.turns.map(turn => renderTurn(turn, lane))}
-              </div>
-            ))}
-          </>
-        )}
-      </div>
+						{subAgentLanes.map((lane) => (
+							<div key={lane.id} className="lane-section subagent-lane">
+								<div className="lane-header subagent">
+									<div className="lane-icon subagent">🤖</div>
+									<div className="lane-name">{lane.name}</div>
+									<div className="lane-turn-count">
+										{lane.turns.length} turns
+									</div>
+								</div>
+								{lane.turns.map((turn) => renderTurn(turn, lane))}
+							</div>
+						))}
+					</>
+				)}
+			</div>
 
-      <style>{`
+			<style>{`
         .trace-tree-container {
           display: flex;
           flex-direction: column;
@@ -381,27 +388,6 @@ export function TraceTree({ data, maxDuration, onSelect, selectedItem }: TraceTr
           background: var(--bg-hover);
           color: var(--text-secondary);
           border-color: var(--border-default);
-        }
-
-        .icon-btn {
-          width: 28px;
-          height: 28px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: var(--radius-sm);
-          background: transparent;
-          border: 1px solid transparent;
-          color: var(--text-muted);
-          cursor: pointer;
-          transition: all 0.15s ease;
-          font-size: 14px;
-        }
-
-        .icon-btn:hover {
-          background: var(--bg-hover);
-          color: var(--text-primary);
-          border-color: var(--border-subtle);
         }
 
         .trace-tree-content {
@@ -822,6 +808,6 @@ export function TraceTree({ data, maxDuration, onSelect, selectedItem }: TraceTr
           font-size: 14px;
         }
       `}</style>
-    </div>
-  );
+		</div>
+	);
 }

@@ -1,238 +1,285 @@
 import { useState, useEffect } from "react";
-import { formatDuration, formatTokens, formatDate, formatSessionId } from "../utils/format.ts";
-
-interface Session {
-  id: string;
-  projectName: string;
-  projectDir: string;
-  startedAt: string;
-  totalDurationMs: number | null;
-  inputTokens: number;
-  outputTokens: number;
-  toolCallCount: number;
-  status: "running" | "completed" | "error";
-  toolTypes?: string[];
-}
+import {
+	formatDuration,
+	formatTokens,
+	formatDate,
+	formatSessionId,
+} from "../utils/format.ts";
+import type { Session } from "../types/timeline.ts";
 
 interface Stats {
-  totalSessions: number;
-  totalTokens: { input: number; output: number; cacheRead: number };
-  totalToolCalls: number;
-  avgDurationMs: number;
+	totalSessions: number;
+	totalTokens: { input: number; output: number; cacheRead: number };
+	totalToolCalls: number;
+	avgDurationMs: number;
 }
 
 type DateFilter = "all" | "today" | "week";
 type ToolFilter = "Bash" | "Read" | "Edit" | "Task";
 
 interface SessionListProps {
-  onSelectSession: (sessionId: string) => void;
+	onSelectSession: (sessionId: string) => void;
 }
 
 export function SessionList({ onSelectSession }: SessionListProps) {
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [dateFilter, setDateFilter] = useState<DateFilter>("all");
-  const [toolFilters, setToolFilters] = useState<Set<ToolFilter>>(new Set());
-  const [searchQuery, setSearchQuery] = useState("");
+	const [sessions, setSessions] = useState<Session[]>([]);
+	const [stats, setStats] = useState<Stats | null>(null);
+	const [loading, setLoading] = useState(true);
+	const [dateFilter, setDateFilter] = useState<DateFilter>("all");
+	const [toolFilters, setToolFilters] = useState<Set<ToolFilter>>(new Set());
+	const [searchQuery, setSearchQuery] = useState("");
 
-  useEffect(() => {
-    fetchData();
-  }, [dateFilter]);
+	useEffect(() => {
+		fetchData();
+	}, [dateFilter]);
 
-  async function fetchData() {
-    try {
-      const params = new URLSearchParams();
-      if (dateFilter !== "all") {
-        params.set("dateRange", dateFilter);
-      }
-      if (searchQuery) {
-        params.set("search", searchQuery);
-      }
+	async function fetchData() {
+		try {
+			const params = new URLSearchParams();
+			if (dateFilter !== "all") {
+				params.set("dateRange", dateFilter);
+			}
+			if (searchQuery) {
+				params.set("search", searchQuery);
+			}
 
-      const [sessionsRes, statsRes] = await Promise.all([
-        fetch(`/api/sessions?${params.toString()}`),
-        fetch("/api/sessions/stats"),
-      ]);
+			const [sessionsRes, statsRes] = await Promise.all([
+				fetch(`/api/sessions?${params.toString()}`),
+				fetch("/api/sessions/stats"),
+			]);
 
-      const sessionsData = await sessionsRes.json();
-      const statsData = await statsRes.json();
+			const sessionsData = await sessionsRes.json();
+			const statsData = await statsRes.json();
 
-      setSessions(sessionsData.sessions || []);
-      setStats(statsData);
-    } catch (error) {
-      console.error("Failed to fetch data:", error);
-    } finally {
-      setLoading(false);
-    }
-  }
+			setSessions(sessionsData.sessions || []);
+			setStats(statsData);
+		} catch (error) {
+			console.error("Failed to fetch data:", error);
+		} finally {
+			setLoading(false);
+		}
+	}
 
-  function toggleToolFilter(tool: ToolFilter) {
-    const newFilters = new Set(toolFilters);
-    if (newFilters.has(tool)) {
-      newFilters.delete(tool);
-    } else {
-      newFilters.add(tool);
-    }
-    setToolFilters(newFilters);
-  }
+	function toggleToolFilter(tool: ToolFilter) {
+		const newFilters = new Set(toolFilters);
+		if (newFilters.has(tool)) {
+			newFilters.delete(tool);
+		} else {
+			newFilters.add(tool);
+		}
+		setToolFilters(newFilters);
+	}
 
-  // Filter sessions by tool types (client-side for now)
-  const filteredSessions = sessions.filter((session) => {
-    if (toolFilters.size === 0) return true;
-    // TODO: When toolTypes is available from API, use it
-    return true;
-  });
+	// Filter sessions by tool types (client-side for now)
+	const filteredSessions = sessions.filter((session) => {
+		if (toolFilters.size === 0) return true;
+		// TODO: When toolTypes is available from API, use it
+		return true;
+	});
 
-  return (
-    <div className="session-list-page">
-      <header className="main-header">
-        <div>
-          <h1 className="page-title">Sessions</h1>
-          <p className="page-subtitle">
-            {stats ? `${stats.totalSessions} sessions traced` : "Loading..."}
-          </p>
-        </div>
-        <div className="header-actions">
-          <div className="search-box">
-            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-            </svg>
-            <input
-              type="text"
-              placeholder="Search sessions..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && fetchData()}
-            />
-            <span className="search-kbd">⌘K</span>
-          </div>
-          <button className="btn btn-primary" onClick={fetchData}>
-            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-            </svg>
-            Refresh
-          </button>
-        </div>
-      </header>
+	return (
+		<div className="session-list-page">
+			<header className="main-header">
+				<div>
+					<h1 className="page-title">Sessions</h1>
+					<p className="page-subtitle">
+						{stats ? `${stats.totalSessions} sessions traced` : "Loading..."}
+					</p>
+				</div>
+				<div className="header-actions">
+					<div className="search-box">
+						<svg
+							width="16"
+							height="16"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+						>
+							<path
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								strokeWidth={2}
+								d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+							/>
+						</svg>
+						<input
+							type="text"
+							placeholder="Search sessions..."
+							value={searchQuery}
+							onChange={(e) => setSearchQuery(e.target.value)}
+							onKeyDown={(e) => e.key === "Enter" && fetchData()}
+						/>
+						<span className="search-kbd">⌘K</span>
+					</div>
+					<button className="btn btn-primary" onClick={fetchData}>
+						<svg
+							width="16"
+							height="16"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+						>
+							<path
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								strokeWidth={2}
+								d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+							/>
+						</svg>
+						Refresh
+					</button>
+				</div>
+			</header>
 
-      <div className="main-content">
-        {/* Stats Grid */}
-        {stats && (
-          <div className="stats-grid">
-            <div className="stat-card">
-              <div className="stat-label">Total Sessions</div>
-              <div className="stat-value">{stats.totalSessions}</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-label">Avg Duration</div>
-              <div className="stat-value">{formatDuration(stats.avgDurationMs)}</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-label">Total Tokens</div>
-              <div className="stat-value">{formatTokens(stats.totalTokens.input + stats.totalTokens.output)}</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-label">Tool Calls</div>
-              <div className="stat-value">{formatTokens(stats.totalToolCalls)}</div>
-            </div>
-          </div>
-        )}
+			<div className="main-content">
+				{/* Stats Grid */}
+				{stats && (
+					<div className="stats-grid">
+						<div className="stat-card">
+							<div className="stat-label">Total Sessions</div>
+							<div className="stat-value">{stats.totalSessions}</div>
+						</div>
+						<div className="stat-card">
+							<div className="stat-label">Avg Duration</div>
+							<div className="stat-value">
+								{formatDuration(stats.avgDurationMs)}
+							</div>
+						</div>
+						<div className="stat-card">
+							<div className="stat-label">Total Tokens</div>
+							<div className="stat-value">
+								{formatTokens(
+									stats.totalTokens.input + stats.totalTokens.output,
+								)}
+							</div>
+						</div>
+						<div className="stat-card">
+							<div className="stat-label">Tool Calls</div>
+							<div className="stat-value">
+								{formatTokens(stats.totalToolCalls)}
+							</div>
+						</div>
+					</div>
+				)}
 
-        {/* Filter Chips */}
-        <div className="filter-chips">
-          {/* Date filters */}
-          <button
-            className={`filter-chip ${dateFilter === "all" ? "active" : ""}`}
-            onClick={() => setDateFilter("all")}
-          >
-            All Sessions
-          </button>
-          <button
-            className={`filter-chip ${dateFilter === "today" ? "active" : ""}`}
-            onClick={() => setDateFilter("today")}
-          >
-            Today
-          </button>
-          <button
-            className={`filter-chip ${dateFilter === "week" ? "active" : ""}`}
-            onClick={() => setDateFilter("week")}
-          >
-            This Week
-          </button>
+				{/* Filter Chips */}
+				<div className="filter-chips">
+					{/* Date filters */}
+					<button
+						className={`filter-chip ${dateFilter === "all" ? "active" : ""}`}
+						onClick={() => setDateFilter("all")}
+					>
+						All Sessions
+					</button>
+					<button
+						className={`filter-chip ${dateFilter === "today" ? "active" : ""}`}
+						onClick={() => setDateFilter("today")}
+					>
+						Today
+					</button>
+					<button
+						className={`filter-chip ${dateFilter === "week" ? "active" : ""}`}
+						onClick={() => setDateFilter("week")}
+					>
+						This Week
+					</button>
 
-          <div className="filter-divider" />
+					<div className="filter-divider" />
 
-          {/* Tool filters */}
-          <button
-            className={`filter-chip ${toolFilters.has("Bash") ? "active" : ""}`}
-            onClick={() => toggleToolFilter("Bash")}
-          >
-            <span className="chip-dot" style={{ background: "var(--tool-bash)" }} />
-            Bash
-          </button>
-          <button
-            className={`filter-chip ${toolFilters.has("Task") ? "active" : ""}`}
-            onClick={() => toggleToolFilter("Task")}
-          >
-            <span className="chip-dot" style={{ background: "var(--tool-task)" }} />
-            Task (Sub-agent)
-          </button>
-          <button
-            className={`filter-chip ${toolFilters.has("Edit") ? "active" : ""}`}
-            onClick={() => toggleToolFilter("Edit")}
-          >
-            <span className="chip-dot" style={{ background: "var(--tool-edit)" }} />
-            Edit
-          </button>
-        </div>
+					{/* Tool filters */}
+					<button
+						className={`filter-chip ${toolFilters.has("Bash") ? "active" : ""}`}
+						onClick={() => toggleToolFilter("Bash")}
+					>
+						<span
+							className="chip-dot"
+							style={{ background: "var(--tool-bash)" }}
+						/>
+						Bash
+					</button>
+					<button
+						className={`filter-chip ${toolFilters.has("Task") ? "active" : ""}`}
+						onClick={() => toggleToolFilter("Task")}
+					>
+						<span
+							className="chip-dot"
+							style={{ background: "var(--tool-task)" }}
+						/>
+						Task (Sub-agent)
+					</button>
+					<button
+						className={`filter-chip ${toolFilters.has("Edit") ? "active" : ""}`}
+						onClick={() => toggleToolFilter("Edit")}
+					>
+						<span
+							className="chip-dot"
+							style={{ background: "var(--tool-edit)" }}
+						/>
+						Edit
+					</button>
+				</div>
 
-        {/* Sessions Table */}
-        <div className="sessions-table">
-          <div className="table-header">
-            <div>Session</div>
-            <div>Started</div>
-            <div>Duration</div>
-            <div>Tokens</div>
-            <div>Tools</div>
-            <div>Status</div>
-          </div>
+				{/* Sessions Table */}
+				<div className="sessions-table">
+					<div className="table-header">
+						<div>Session</div>
+						<div>Started</div>
+						<div>Duration</div>
+						<div>Tokens</div>
+						<div>Tools</div>
+						<div>Status</div>
+					</div>
 
-          {loading ? (
-            <div className="loading-state">Loading sessions...</div>
-          ) : filteredSessions.length === 0 ? (
-            <div className="empty-state">
-              <p>No sessions yet</p>
-              <p className="text-secondary">Sessions will appear here when Claude Code sends data via Stop hooks</p>
-            </div>
-          ) : (
-            filteredSessions.map((session) => (
-              <div
-                key={session.id}
-                className="table-row"
-                onClick={() => onSelectSession(session.id)}
-              >
-                <div className="session-info">
-                  <div className="session-project">{session.projectName}</div>
-                  <div className="session-id">{formatSessionId(session.id, "short")}</div>
-                </div>
-                <div className="session-timestamp">{formatDate(session.startedAt)}</div>
-                <div className="session-duration">{formatDuration(session.totalDurationMs)}</div>
-                <div className="session-tokens">{formatTokens(session.inputTokens + session.outputTokens)}</div>
-                <div className="session-tools">{session.toolCallCount}</div>
-                <div>
-                  <span className={`status-badge ${session.status}`}>
-                    <span className="status-dot"></span>
-                    {session.status === "completed" ? "Complete" : session.status === "running" ? "Running" : "Error"}
-                  </span>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
+					{loading ? (
+						<div className="loading-state">Loading sessions...</div>
+					) : filteredSessions.length === 0 ? (
+						<div className="empty-state">
+							<p>No sessions yet</p>
+							<p className="text-secondary">
+								Sessions will appear here when Claude Code sends data via Stop
+								hooks
+							</p>
+						</div>
+					) : (
+						filteredSessions.map((session) => (
+							<div
+								key={session.id}
+								className="table-row"
+								onClick={() => onSelectSession(session.id)}
+							>
+								<div className="session-info">
+									<div className="session-project">{session.projectName}</div>
+									<div className="session-id">
+										{formatSessionId(session.id, "short")}
+									</div>
+								</div>
+								<div className="session-timestamp">
+									{formatDate(session.startedAt)}
+								</div>
+								<div className="session-duration">
+									{formatDuration(session.totalDurationMs)}
+								</div>
+								<div className="session-tokens">
+									{formatTokens(session.inputTokens + session.outputTokens)}
+								</div>
+								<div className="session-tools">{session.toolCallCount}</div>
+								<div>
+									<span className={`status-badge ${session.status}`}>
+										<span className="status-dot"></span>
+										{session.status === "completed"
+											? "Complete"
+											: session.status === "running"
+												? "Running"
+												: "Error"}
+									</span>
+								</div>
+							</div>
+						))
+					)}
+				</div>
+			</div>
 
-      <style>{`
+			<style>{`
         .session-list-page {
           display: flex;
           flex-direction: column;
@@ -547,6 +594,6 @@ export function SessionList({ onSelectSession }: SessionListProps) {
           margin: 0 var(--space-xs);
         }
       `}</style>
-    </div>
-  );
+		</div>
+	);
 }

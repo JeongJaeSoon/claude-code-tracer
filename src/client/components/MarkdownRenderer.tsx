@@ -1,133 +1,107 @@
-import { useState, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { CopyButton } from "./CopyButton.tsx";
 
 interface MarkdownRendererProps {
-  content: string;
-  className?: string;
+	content: string;
+	className?: string;
 }
 
-// Copy button component for code blocks
-function CopyButton({ code }: { code: string }) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy:", err);
-    }
-  }, [code]);
-
-  return (
-    <button className="md-copy-btn" onClick={handleCopy} title="Copy code">
-      {copied ? (
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <polyline points="20,6 9,17 4,12" />
-        </svg>
-      ) : (
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-          <path d="M5,15H4a2,2,0,0,1-2-2V4A2,2,0,0,1,4,2H15a2,2,0,0,1,2,2V5" />
-        </svg>
-      )}
-    </button>
-  );
+interface LanguageBadgeProps {
+	language: string;
 }
 
-// Language badge component
-function LanguageBadge({ language }: { language: string }) {
-  if (!language) return null;
-  return <span className="md-lang-badge">{language}</span>;
+function LanguageBadge({
+	language,
+}: LanguageBadgeProps): React.ReactElement | null {
+	if (!language) return null;
+	return <span className="md-lang-badge">{language}</span>;
 }
 
-export function MarkdownRenderer({ content, className = "" }: MarkdownRendererProps) {
-  return (
-    <div className={`md-renderer ${className}`}>
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          // Code blocks with syntax highlighting
-          code({ className: codeClassName, children, node, ...props }) {
-            const match = /language-(\w+)/.exec(codeClassName || "");
-            const language = match ? match[1] : "";
-            const codeString = String(children).replace(/\n$/, "");
+const CODE_BLOCK_STYLE: React.CSSProperties = {
+	margin: 0,
+	borderRadius: "0 0 6px 6px",
+	fontSize: "12px",
+	lineHeight: "1.5",
+	padding: "12px 16px",
+};
 
-            // Check if this is a block-level code (has language or multi-line)
-            const isBlock = match || codeString.includes("\n");
+export function MarkdownRenderer({
+	content,
+	className = "",
+}: MarkdownRendererProps): React.ReactElement {
+	return (
+		<div className={`md-renderer ${className}`}>
+			<ReactMarkdown
+				remarkPlugins={[remarkGfm]}
+				components={{
+					code({ className: codeClassName, children, ...props }) {
+						const match = /language-(\w+)/.exec(codeClassName || "");
+						const language = match ? match[1] : "";
+						const codeString = String(children).replace(/\n$/, "");
+						const isBlock = match || codeString.includes("\n");
 
-            if (isBlock) {
-              return (
-                <div className="md-code-block">
-                  <div className="md-code-header">
-                    <LanguageBadge language={language || "code"} />
-                    <CopyButton code={codeString} />
-                  </div>
-                  <SyntaxHighlighter
-                    style={vscDarkPlus as Record<string, React.CSSProperties>}
-                    language={language || "text"}
-                    PreTag="div"
-                    customStyle={{
-                      margin: 0,
-                      borderRadius: "0 0 6px 6px",
-                      fontSize: "12px",
-                      lineHeight: "1.5",
-                      padding: "12px 16px",
-                    }}
-                  >
-                    {codeString}
-                  </SyntaxHighlighter>
-                </div>
-              );
-            }
+						if (isBlock) {
+							return (
+								<div className="md-code-block">
+									<div className="md-code-header">
+										<LanguageBadge language={language || "code"} />
+										<CopyButton content={codeString} variant="compact" />
+									</div>
+									<SyntaxHighlighter
+										style={vscDarkPlus as Record<string, React.CSSProperties>}
+										language={language || "text"}
+										PreTag="div"
+										customStyle={CODE_BLOCK_STYLE}
+									>
+										{codeString}
+									</SyntaxHighlighter>
+								</div>
+							);
+						}
 
-            // Inline code
-            return (
-              <code className="md-inline-code" {...props}>
-                {children}
-              </code>
-            );
-          },
-
-          // Custom table styling
-          table({ children }) {
-            return (
-              <div className="md-table-wrapper">
-                <table className="md-table">{children}</table>
-              </div>
-            );
-          },
-
-          // Custom blockquote
-          blockquote({ children }) {
-            return <blockquote className="md-blockquote">{children}</blockquote>;
-          },
-
-          // Custom link
-          a({ href, children }) {
-            return (
-              <a href={href} className="md-link" target="_blank" rel="noopener noreferrer">
-                {children}
-              </a>
-            );
-          },
-
-          // Custom pre tag (already handled by code)
-          pre({ children }) {
-            return <>{children}</>;
-          },
-        }}
-      >
-        {content}
-      </ReactMarkdown>
-
-      <style>{markdownStyles}</style>
-    </div>
-  );
+						return (
+							<code className="md-inline-code" {...props}>
+								{children}
+							</code>
+						);
+					},
+					table({ children }) {
+						return (
+							<div className="md-table-wrapper">
+								<table className="md-table">{children}</table>
+							</div>
+						);
+					},
+					blockquote({ children }) {
+						return (
+							<blockquote className="md-blockquote">{children}</blockquote>
+						);
+					},
+					a({ href, children }) {
+						return (
+							<a
+								href={href}
+								className="md-link"
+								target="_blank"
+								rel="noopener noreferrer"
+							>
+								{children}
+							</a>
+						);
+					},
+					pre({ children }) {
+						return <>{children}</>;
+					},
+				}}
+			>
+				{content}
+			</ReactMarkdown>
+			<style>{markdownStyles}</style>
+		</div>
+	);
 }
 
 const markdownStyles = `
@@ -220,25 +194,6 @@ const markdownStyles = `
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: rgba(255, 255, 255, 0.5);
-  }
-
-  .md-copy-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    background: rgba(255, 255, 255, 0.1);
-    border: none;
-    border-radius: 4px;
-    color: rgba(255, 255, 255, 0.6);
-    cursor: pointer;
-    transition: all 0.15s ease;
-  }
-
-  .md-copy-btn:hover {
-    background: rgba(255, 255, 255, 0.2);
-    color: rgba(255, 255, 255, 0.9);
   }
 
   /* Inline code */
