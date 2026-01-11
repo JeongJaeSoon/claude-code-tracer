@@ -1,6 +1,6 @@
 # Claude Code Tracer
 
-Claude Code 세션을 Flamegraph로 시각화하는 Self-hosted 트레이싱 도구
+Claude Code 세션을 TraceTree로 시각화하는 Self-hosted 트레이싱 도구
 
 ## Rules
 
@@ -11,7 +11,7 @@ Claude Code 세션을 Flamegraph로 시각화하는 Self-hosted 트레이싱 도
 - **Runtime**: Bun
 - **Backend**: Hono
 - **Frontend**: React + Vite
-- **Flamegraph**: flame-chart-js
+- **Visualization**: TraceTree (Lane → Turn → Step 구조)
 - **ORM**: drizzle-orm
 - **DB**: SQLite
 - **Formatter**: Biome
@@ -40,10 +40,10 @@ bun run db:migrate   # DB 마이그레이션
 
 ## Core Concepts
 
-1. **데이터 흐름**: Claude Code JSONL -> Stop Hook -> POST /ingest -> DB -> Flamegraph UI
-2. **트리 구조**: `uuid`/`parentUuid`로 호출 트리 구성
-3. **Sub-agent**: 동일 `sessionId` + 다른 `agentId`로 연결
-4. **실행 시간**: `toolUseResult.durationMs` 필드 활용
+1. **데이터 흐름**: Claude Code JSONL -> Stop Hook -> POST /ingest -> DB -> TraceTree UI
+2. **TraceTree 구조**: Lane(Main/Sub-agent) → Turn(사용자→어시스턴트) → Step(도구 호출)
+3. **Sub-agent**: 동일 `sessionId` + 다른 `agentId`로 연결, 별도 Lane으로 표시
+4. **실행 시간**: `toolUseResult.durationMs` 필드로 Duration 바 시각화
 
 ## Development
 
@@ -73,4 +73,4 @@ bun run dev:client
 ## References
 
 - 상세 설계: `docs/claude-code-tracer-design.md`
-- UI 목업: `docs/claude-code-tracer-ui/index.html`
+- UI 목업 (아카이브): `docs/archive/mockups/`
