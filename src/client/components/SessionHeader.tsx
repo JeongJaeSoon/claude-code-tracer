@@ -15,12 +15,14 @@ interface SessionHeaderStats {
 
 interface SessionHeaderProps {
 	title: string;
+	projectName?: string;
 	sessionId?: string;
 	stats: SessionHeaderStats;
 }
 
 export function SessionHeader({
 	title,
+	projectName,
 	sessionId,
 	stats,
 }: SessionHeaderProps): JSX.Element {
@@ -54,6 +56,7 @@ export function SessionHeader({
 						</button>
 						<span className="session-name">{title}</span>
 					</div>
+					{projectName && <span className="project-name">{projectName}</span>}
 					{sessionId && (
 						<button
 							type="button"
@@ -150,6 +153,15 @@ export function SessionHeader({
 					font-size: 16px;
 					font-weight: 600;
 					color: var(--text-primary);
+				}
+
+				.project-name {
+					font-size: 13px;
+					font-weight: 500;
+					color: var(--text-secondary);
+					padding: var(--space-xs) var(--space-sm);
+					background: var(--bg-tertiary);
+					border-radius: var(--radius-sm);
 				}
 
 				.session-id-btn {

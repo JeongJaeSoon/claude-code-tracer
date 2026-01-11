@@ -31,9 +31,12 @@ app.get("/api/health", (c) =>
 	c.json({ status: "ok", timestamp: new Date().toISOString() }),
 );
 
-// Serve static files in production
-app.use("/*", serveStatic({ root: "./dist/client" }));
-app.get("/*", serveStatic({ root: "./dist/client", path: "index.html" }));
+// Serve static files in production only
+const isProduction = process.env.NODE_ENV === "production";
+if (isProduction) {
+	app.use("/*", serveStatic({ root: "./dist/client" }));
+	app.get("/*", serveStatic({ root: "./dist/client", path: "index.html" }));
+}
 
 const port = Number(process.env.PORT) || 8080;
 

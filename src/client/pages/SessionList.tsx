@@ -157,7 +157,7 @@ export function SessionList({
 	return (
 		<div className="session-list-page">
 			<SessionHeader
-				title={`Sessions${stats ? ` (${stats.totalSessions})` : ""}`}
+				title="Claude Code Tracer"
 				stats={{
 					durationMs: stats?.avgDurationMs ?? 0,
 					tokens: stats
@@ -176,36 +176,6 @@ export function SessionList({
 				/>
 
 				<div className="main-content">
-					{/* Stats Grid */}
-					{stats && (
-						<div className="stats-grid">
-							<div className="stat-card">
-								<div className="stat-label">Total Sessions</div>
-								<div className="stat-value">{stats.totalSessions}</div>
-							</div>
-							<div className="stat-card">
-								<div className="stat-label">Avg Duration</div>
-								<div className="stat-value">
-									{formatDuration(stats.avgDurationMs)}
-								</div>
-							</div>
-							<div className="stat-card">
-								<div className="stat-label">Total Tokens</div>
-								<div className="stat-value">
-									{formatTokens(
-										stats.totalTokens.input + stats.totalTokens.output,
-									)}
-								</div>
-							</div>
-							<div className="stat-card">
-								<div className="stat-label">Tool Calls</div>
-								<div className="stat-value">
-									{formatTokens(stats.totalToolCalls)}
-								</div>
-							</div>
-						</div>
-					)}
-
 					{/* Filter Chips */}
 					<div className="filter-chips">
 						{/* Date filters */}
@@ -317,42 +287,6 @@ export function SessionList({
           padding: var(--space-xl);
           padding-bottom: var(--space-2xl);
           overflow-y: auto;
-        }
-
-        .stats-grid {
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: var(--space-md);
-          margin-bottom: var(--space-xl);
-        }
-
-        .stat-card {
-          background: var(--bg-elevated);
-          border: 1px solid var(--border-subtle);
-          border-radius: var(--radius-lg);
-          padding: var(--space-lg);
-          transition: all var(--transition-fast);
-        }
-
-        .stat-card:hover {
-          border-color: var(--border-default);
-          box-shadow: var(--shadow-md);
-        }
-
-        .stat-label {
-          font-size: 12px;
-          font-weight: 500;
-          color: var(--text-tertiary);
-          text-transform: uppercase;
-          letter-spacing: 0.03em;
-          margin-bottom: var(--space-xs);
-        }
-
-        .stat-value {
-          font-size: 28px;
-          font-weight: 700;
-          letter-spacing: -0.02em;
-          font-feature-settings: 'tnum';
         }
 
         .sessions-table {

@@ -82,7 +82,8 @@ export function SessionDetail({ sessionId }: SessionDetailProps): JSX.Element {
 	return (
 		<div className="session-detail-v2">
 			<SessionHeader
-				title={session.projectName}
+				title="Claude Code Tracer"
+				projectName={session.projectName}
 				sessionId={sessionId}
 				stats={{
 					durationMs: session.totalDurationMs,
