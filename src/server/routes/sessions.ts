@@ -1,43 +1,11 @@
 import { and, desc, eq, gte, inArray, type like, lte, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { db } from "../db/client.ts";
-import { messages, sessions, toolCalls } from "../db/schema.ts";
+import { sessions, toolCalls } from "../db/schema.ts";
+import { enrichSessions } from "../services/sessionEnrichment.ts";
+import { getDateThreshold, getDurationRange } from "../utils/dateFilters.ts";
 
 export const sessionsRoutes = new Hono();
-
-// Helper: Get date threshold for date range filter
-function getDateThreshold(dateRange: string): string | null {
-	const now = new Date();
-	switch (dateRange) {
-		case "today":
-			now.setHours(0, 0, 0, 0);
-			return now.toISOString();
-		case "week":
-			now.setDate(now.getDate() - 7);
-			return now.toISOString();
-		case "month":
-			now.setMonth(now.getMonth() - 1);
-			return now.toISOString();
-		default:
-			return null;
-	}
-}
-
-// Helper: Get duration range in ms
-function getDurationRange(
-	duration: string,
-): { min: number; max: number } | null {
-	switch (duration) {
-		case "fast":
-			return { min: 0, max: 30000 }; // < 30s
-		case "normal":
-			return { min: 30000, max: 300000 }; // 30s - 5m
-		case "slow":
-			return { min: 300000, max: Number.MAX_SAFE_INTEGER }; // > 5m
-		default:
-			return null;
-	}
-}
 
 // GET /api/sessions - List all sessions with filters
 sessionsRoutes.get("/", async (c) => {
@@ -63,7 +31,7 @@ sessionsRoutes.get("/", async (c) => {
 		// Text search (sessionId or projectName)
 		if (search) {
 			conditions.push(
-				sql`(${sessions.id} LIKE ${"%" + search + "%"} OR ${sessions.projectName} LIKE ${"%" + search + "%"})`,
+				sql`(${sessions.id} LIKE ${`%${search}%`} OR ${sessions.projectName} LIKE ${`%${search}%`})`,
 			);
 		}
 
@@ -90,7 +58,7 @@ sessionsRoutes.get("/", async (c) => {
 		// Token filters
 		if (minTokens) {
 			const minVal = Number(minTokens);
-			if (!isNaN(minVal)) {
+			if (!Number.isNaN(minVal)) {
 				conditions.push(
 					sql`(${sessions.inputTokens} + ${sessions.outputTokens}) >= ${minVal}`,
 				);
@@ -98,7 +66,7 @@ sessionsRoutes.get("/", async (c) => {
 		}
 		if (maxTokens) {
 			const maxVal = Number(maxTokens);
-			if (!isNaN(maxVal)) {
+			if (!Number.isNaN(maxVal)) {
 				conditions.push(
 					sql`(${sessions.inputTokens} + ${sessions.outputTokens}) <= ${maxVal}`,
 				);
@@ -142,62 +110,14 @@ sessionsRoutes.get("/", async (c) => {
 			.from(sessions)
 			.where(whereClause);
 
-		// Get first user message for each session
+		// Enrich sessions with first prompts and tool types
 		const sessionIds = result.map((s) => s.id);
-		const firstPrompts: Record<string, string> = {};
-		const sessionToolTypes: Record<string, string[]> = {};
+		const { firstPrompts, toolTypes } = await enrichSessions(sessionIds);
 
-		if (sessionIds.length > 0) {
-			// Fetch first prompts
-			const firstMessages = await db
-				.select({
-					sessionId: messages.sessionId,
-					content: messages.content,
-				})
-				.from(messages)
-				.where(
-					and(
-						inArray(messages.sessionId, sessionIds),
-						eq(messages.type, "user"),
-						sql`(${messages.parentUuid} IS NULL OR ${messages.parentUuid} = '')`,
-						sql`${messages.content} != 'Warmup'`,
-					),
-				)
-				.orderBy(messages.timestamp);
-
-			// Group by sessionId and take first one
-			for (const msg of firstMessages) {
-				if (!firstPrompts[msg.sessionId] && msg.content) {
-					firstPrompts[msg.sessionId] = msg.content;
-				}
-			}
-
-			// Fetch tool types per session
-			const toolTypesResult = await db
-				.select({
-					sessionId: toolCalls.sessionId,
-					toolName: toolCalls.toolName,
-				})
-				.from(toolCalls)
-				.where(inArray(toolCalls.sessionId, sessionIds))
-				.groupBy(toolCalls.sessionId, toolCalls.toolName);
-
-			// Group by sessionId
-			for (const row of toolTypesResult) {
-				if (!sessionToolTypes[row.sessionId]) {
-					sessionToolTypes[row.sessionId] = [];
-				}
-				if (!sessionToolTypes[row.sessionId].includes(row.toolName)) {
-					sessionToolTypes[row.sessionId].push(row.toolName);
-				}
-			}
-		}
-
-		// Merge first prompt and toolTypes into sessions
 		const sessionsWithPrompt = result.map((s) => ({
 			...s,
 			firstPrompt: firstPrompts[s.id] || null,
-			toolTypes: sessionToolTypes[s.id] || [],
+			toolTypes: toolTypes[s.id] || [],
 		}));
 
 		return c.json({

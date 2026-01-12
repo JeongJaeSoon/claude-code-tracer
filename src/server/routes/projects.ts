@@ -1,7 +1,9 @@
-import { and, desc, eq, gte, inArray, like, sql } from "drizzle-orm";
+import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { db } from "../db/client.ts";
-import { messages, sessions, toolCalls } from "../db/schema.ts";
+import { sessions } from "../db/schema.ts";
+import { enrichSessions } from "../services/sessionEnrichment.ts";
+import { getDateThreshold } from "../utils/dateFilters.ts";
 
 const app = new Hono();
 
@@ -17,24 +19,6 @@ interface ProjectStats {
 	firstSessionAt: string;
 }
 
-// Helper: Get date threshold for date range filter
-function getDateThreshold(dateRange: string): string | null {
-	const now = new Date();
-	switch (dateRange) {
-		case "today":
-			now.setHours(0, 0, 0, 0);
-			return now.toISOString();
-		case "week":
-			now.setDate(now.getDate() - 7);
-			return now.toISOString();
-		case "month":
-			now.setMonth(now.getMonth() - 1);
-			return now.toISOString();
-		default:
-			return null;
-	}
-}
-
 // GET /api/projects - List all projects with aggregated stats
 app.get("/", async (c) => {
 	try {
@@ -46,7 +30,7 @@ app.get("/", async (c) => {
 
 		// Text search (projectName)
 		if (search) {
-			conditions.push(sql`${sessions.projectName} LIKE ${"%" + search + "%"}`);
+			conditions.push(sql`${sessions.projectName} LIKE ${`%${search}%`}`);
 		}
 
 		// Date range filter (filter by lastSessionAt)
@@ -120,58 +104,14 @@ app.get("/:projectName/sessions", async (c) => {
 			.from(sessions)
 			.where(eq(sessions.projectName, projectName));
 
-		// Get first user message for each session
+		// Enrich sessions with first prompts and tool types
 		const sessionIds = projectSessions.map((s) => s.id);
-		const firstPrompts: Record<string, string> = {};
-		const sessionToolTypes: Record<string, string[]> = {};
-
-		if (sessionIds.length > 0) {
-			const firstMessages = await db
-				.select({
-					sessionId: messages.sessionId,
-					content: messages.content,
-				})
-				.from(messages)
-				.where(
-					and(
-						inArray(messages.sessionId, sessionIds),
-						eq(messages.type, "user"),
-						sql`(${messages.parentUuid} IS NULL OR ${messages.parentUuid} = '')`,
-						sql`${messages.content} != 'Warmup'`,
-					),
-				)
-				.orderBy(messages.timestamp);
-
-			for (const msg of firstMessages) {
-				if (!firstPrompts[msg.sessionId] && msg.content) {
-					firstPrompts[msg.sessionId] = msg.content;
-				}
-			}
-
-			// Fetch tool types per session
-			const toolTypesResult = await db
-				.select({
-					sessionId: toolCalls.sessionId,
-					toolName: toolCalls.toolName,
-				})
-				.from(toolCalls)
-				.where(inArray(toolCalls.sessionId, sessionIds))
-				.groupBy(toolCalls.sessionId, toolCalls.toolName);
-
-			for (const row of toolTypesResult) {
-				if (!sessionToolTypes[row.sessionId]) {
-					sessionToolTypes[row.sessionId] = [];
-				}
-				if (!sessionToolTypes[row.sessionId].includes(row.toolName)) {
-					sessionToolTypes[row.sessionId].push(row.toolName);
-				}
-			}
-		}
+		const { firstPrompts, toolTypes } = await enrichSessions(sessionIds);
 
 		const sessionsWithPrompt = projectSessions.map((s) => ({
 			...s,
 			firstPrompt: firstPrompts[s.id] || null,
-			toolTypes: sessionToolTypes[s.id] || [],
+			toolTypes: toolTypes[s.id] || [],
 		}));
 
 		return c.json({

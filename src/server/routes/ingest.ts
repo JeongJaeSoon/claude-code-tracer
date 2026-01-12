@@ -1,8 +1,6 @@
 import path from "node:path";
-import { eq } from "drizzle-orm";
 import { Hono } from "hono";
-import { db } from "../db/client.ts";
-import { messages, sessions, toolCalls } from "../db/schema.ts";
+import { insertNewItems, upsertSession } from "../services/ingestHelpers.ts";
 import { parseJSONL } from "../services/parser.ts";
 
 export const ingestRoutes = new Hono();
@@ -21,63 +19,19 @@ ingestRoutes.post("/", async (c) => {
 			return c.json({ error: "Failed to parse session data" }, 400);
 		}
 
-		// Insert session
-		await db
-			.insert(sessions)
-			.values(result.session)
-			.onConflictDoUpdate({
-				target: sessions.id,
-				set: {
-					endedAt: result.session.endedAt,
-					totalDurationMs: result.session.totalDurationMs,
-					inputTokens: result.session.inputTokens,
-					outputTokens: result.session.outputTokens,
-					cacheReadTokens: result.session.cacheReadTokens,
-					cacheCreationTokens: result.session.cacheCreationTokens,
-					toolCallCount: result.session.toolCallCount,
-					subAgentCount: result.session.subAgentCount,
-					status: result.session.status,
-				},
-			});
-
-		// Get existing uuids to prevent duplicates
-		const existingToolCalls = await db
-			.select({ uuid: toolCalls.uuid })
-			.from(toolCalls)
-			.where(eq(toolCalls.sessionId, result.session.id));
-		const existingToolUuids = new Set(existingToolCalls.map((t) => t.uuid));
-
-		const existingMessages = await db
-			.select({ uuid: messages.uuid })
-			.from(messages)
-			.where(eq(messages.sessionId, result.session.id));
-		const existingMessageUuids = new Set(existingMessages.map((m) => m.uuid));
-
-		// Insert only new tool calls
-		const newToolCalls = result.toolCalls.filter(
-			(tc) => !existingToolUuids.has(tc.uuid),
+		// Upsert session and insert new items
+		await upsertSession(result.session);
+		const { toolCallCount, messageCount } = await insertNewItems(
+			result.session.id,
+			result.toolCalls,
+			result.messages,
 		);
-		if (newToolCalls.length > 0) {
-			for (const toolCall of newToolCalls) {
-				await db.insert(toolCalls).values(toolCall).onConflictDoNothing();
-			}
-		}
-
-		// Insert only new messages
-		const newMessages = result.messages.filter(
-			(msg) => !existingMessageUuids.has(msg.uuid),
-		);
-		if (newMessages.length > 0) {
-			for (const message of newMessages) {
-				await db.insert(messages).values(message).onConflictDoNothing();
-			}
-		}
 
 		return c.json({
 			success: true,
 			sessionId: result.session.id,
-			toolCallCount: newToolCalls.length,
-			messageCount: newMessages.length,
+			toolCallCount,
+			messageCount,
 		});
 	} catch (error) {
 		console.error("Ingest error:", error);
@@ -125,7 +79,6 @@ ingestRoutes.post("/file", async (c) => {
 		const subagentsDir = `${sessionDir}/subagents`;
 
 		let subAgentCount = 0;
-		const subAgentFile = Bun.file(subagentsDir);
 
 		try {
 			const { readdir } = await import("node:fs/promises");
@@ -169,63 +122,19 @@ ingestRoutes.post("/file", async (c) => {
 		result.session.toolCallCount = result.toolCalls.length;
 		result.session.subAgentCount = subAgentCount;
 
-		// Insert session
-		await db
-			.insert(sessions)
-			.values(result.session)
-			.onConflictDoUpdate({
-				target: sessions.id,
-				set: {
-					endedAt: result.session.endedAt,
-					totalDurationMs: result.session.totalDurationMs,
-					inputTokens: result.session.inputTokens,
-					outputTokens: result.session.outputTokens,
-					cacheReadTokens: result.session.cacheReadTokens,
-					cacheCreationTokens: result.session.cacheCreationTokens,
-					toolCallCount: result.session.toolCallCount,
-					subAgentCount: result.session.subAgentCount,
-					status: result.session.status,
-				},
-			});
-
-		// Get existing uuids to prevent duplicates
-		const existingToolCalls = await db
-			.select({ uuid: toolCalls.uuid })
-			.from(toolCalls)
-			.where(eq(toolCalls.sessionId, result.session.id));
-		const existingToolUuids = new Set(existingToolCalls.map((t) => t.uuid));
-
-		const existingMessages = await db
-			.select({ uuid: messages.uuid })
-			.from(messages)
-			.where(eq(messages.sessionId, result.session.id));
-		const existingMessageUuids = new Set(existingMessages.map((m) => m.uuid));
-
-		// Insert only new tool calls
-		const newToolCalls = result.toolCalls.filter(
-			(tc) => !existingToolUuids.has(tc.uuid),
+		// Upsert session and insert new items
+		await upsertSession(result.session);
+		const { toolCallCount, messageCount } = await insertNewItems(
+			result.session.id,
+			result.toolCalls,
+			result.messages,
 		);
-		if (newToolCalls.length > 0) {
-			for (const toolCall of newToolCalls) {
-				await db.insert(toolCalls).values(toolCall).onConflictDoNothing();
-			}
-		}
-
-		// Insert only new messages
-		const newMessages = result.messages.filter(
-			(msg) => !existingMessageUuids.has(msg.uuid),
-		);
-		if (newMessages.length > 0) {
-			for (const message of newMessages) {
-				await db.insert(messages).values(message).onConflictDoNothing();
-			}
-		}
 
 		return c.json({
 			success: true,
 			sessionId: result.session.id,
-			toolCallCount: newToolCalls.length,
-			messageCount: newMessages.length,
+			toolCallCount,
+			messageCount,
 			subAgentCount,
 		});
 	} catch (error) {

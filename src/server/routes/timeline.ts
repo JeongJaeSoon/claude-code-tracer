@@ -184,7 +184,7 @@ app.get("/:sessionId", async (c) => {
 			if (!eventsByAgent.has(agentId)) {
 				eventsByAgent.set(agentId, []);
 			}
-			eventsByAgent.get(agentId)!.push(event);
+			eventsByAgent.get(agentId)?.push(event);
 		}
 
 		// Process each agent's events to build turns
@@ -220,7 +220,7 @@ app.get("/:sessionId", async (c) => {
 						// Finalize previous turn - remove duplicate finalResponse from steps
 						if (currentTurn.finalResponse) {
 							currentTurn.steps = currentTurn.steps.filter(
-								(s) => s.id !== currentTurn!.finalResponse!.id,
+								(s) => s.id !== currentTurn?.finalResponse?.id,
 							);
 						}
 						currentTurn.endTime = relativeTime;
@@ -299,7 +299,7 @@ app.get("/:sessionId", async (c) => {
 			if (currentTurn) {
 				if (currentTurn.finalResponse) {
 					currentTurn.steps = currentTurn.steps.filter(
-						(s) => s.id !== currentTurn!.finalResponse!.id,
+						(s) => s.id !== currentTurn?.finalResponse?.id,
 					);
 				}
 				lane.turns.push(currentTurn);
@@ -347,7 +347,7 @@ app.get("/:sessionId/colors", (c) => {
 	return c.json({ toolColors: TOOL_COLORS, laneColors: LANE_COLORS });
 });
 
-function formatToolInput(toolName: string, input: string | null): string {
+function formatToolInput(_toolName: string, input: string | null): string {
 	if (!input) return "";
 
 	try {
