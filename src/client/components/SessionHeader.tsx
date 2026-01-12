@@ -48,7 +48,7 @@ export function SessionHeader({
 	projectName,
 	sessionId,
 	stats,
-}: SessionHeaderProps): JSX.Element {
+}: SessionHeaderProps) {
 	const [copiedId, setCopiedId] = useState(false);
 	const { theme, setTheme } = useTheme();
 

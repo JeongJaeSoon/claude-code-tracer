@@ -28,7 +28,7 @@ function parseHash(hash: string): RouterState {
 	};
 
 	// #session/{sessionId}/{itemId?} -> session detail
-	if (path.startsWith("session/")) {
+	if (path?.startsWith("session/")) {
 		const rest = path.slice(8); // "session/".length = 8
 		const [sessionId, selectedItemId] = rest.split("/");
 		if (sessionId) {
@@ -45,7 +45,7 @@ function parseHash(hash: string): RouterState {
 	return { page: "sessions", filters };
 }
 
-export function App(): JSX.Element {
+export function App() {
 	const [router, setRouter] = useState<RouterState>(() =>
 		parseHash(window.location.hash),
 	);

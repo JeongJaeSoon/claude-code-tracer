@@ -15,7 +15,7 @@ interface SessionDetailProps {
 export function SessionDetail({
 	sessionId,
 	initialItemId,
-}: SessionDetailProps): JSX.Element {
+}: SessionDetailProps) {
 	const [session, setSession] = useState<Session | null>(null);
 	const [timelineData, setTimelineData] = useState<TimelineData | null>(null);
 	const [loading, setLoading] = useState(true);
@@ -150,7 +150,7 @@ export function SessionDetail({
 				projectName={session.projectName}
 				sessionId={sessionId}
 				stats={{
-					durationMs: session.totalDurationMs,
+					durationMs: session.totalDurationMs ?? 0,
 					tokens: session.inputTokens + session.outputTokens,
 					toolCalls: session.toolCallCount,
 				}}

@@ -1,7 +1,7 @@
 import { and, desc, eq, gte, inArray, type like, lte, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { db } from "../db/client.ts";
-import { sessions, toolCalls } from "../db/schema.ts";
+import { messages, sessions, toolCalls } from "../db/schema.ts";
 import { enrichSessions } from "../services/sessionEnrichment.ts";
 import { getDateThreshold, getDurationRange } from "../utils/dateFilters.ts";
 

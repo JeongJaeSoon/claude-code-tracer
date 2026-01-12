@@ -26,7 +26,7 @@ interface ThemeProviderProps {
 	children: ReactNode;
 }
 
-export function ThemeProvider({ children }: ThemeProviderProps): JSX.Element {
+export function ThemeProvider({ children }: ThemeProviderProps) {
 	const [theme, setTheme] = useState<Theme>("dark");
 
 	// Apply theme to document

@@ -67,11 +67,11 @@ async function getToolTypesBySession(
 
 	const sessionToolTypes: Record<string, string[]> = {};
 	for (const row of toolTypesResult) {
-		if (!sessionToolTypes[row.sessionId]) {
-			sessionToolTypes[row.sessionId] = [];
-		}
-		if (!sessionToolTypes[row.sessionId].includes(row.toolName)) {
-			sessionToolTypes[row.sessionId].push(row.toolName);
+		const existing = sessionToolTypes[row.sessionId];
+		if (!existing) {
+			sessionToolTypes[row.sessionId] = [row.toolName];
+		} else if (!existing.includes(row.toolName)) {
+			existing.push(row.toolName);
 		}
 	}
 
