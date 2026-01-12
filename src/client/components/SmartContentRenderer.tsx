@@ -174,7 +174,6 @@ function renderContentBody(
 					{content}
 				</SyntaxHighlighter>
 			);
-		case "plain":
 		default:
 			return <div className="smart-plain-text">{content}</div>;
 	}

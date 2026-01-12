@@ -220,7 +220,7 @@ function formatTime(ms: number): string {
 		return `${hours}h${minutes % 60}m`;
 	}
 	if (minutes > 0) {
-		return `${minutes}m${seconds % 60 > 0 ? (seconds % 60) + "s" : ""}`;
+		return `${minutes}m${seconds % 60 > 0 ? `${seconds % 60}s` : ""}`;
 	}
 	return `${seconds}s`;
 }

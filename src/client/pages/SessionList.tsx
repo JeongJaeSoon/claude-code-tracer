@@ -89,26 +89,12 @@ export function SessionList({
 		[selectedProject, searchQuery, syncToURL],
 	);
 
-	const handleSearchChange = useCallback((search: string) => {
+	const _handleSearchChange = useCallback((search: string) => {
 		setSearchQuery(search);
 	}, []);
 
-	const handleSearchSubmit = useCallback(() => {
-		syncToURL(selectedProject, dateFilter, searchQuery);
-		fetchSessions();
-	}, [selectedProject, dateFilter, searchQuery, syncToURL]);
-
-	// Fetch projects on mount
-	useEffect(() => {
-		fetchProjects();
-	}, []);
-
-	// Fetch sessions when project or date filter changes
-	useEffect(() => {
-		fetchSessions();
-	}, [dateFilter, selectedProject]);
-
-	async function fetchProjects() {
+	// Memoized fetch functions
+	const fetchProjects = useCallback(async () => {
 		try {
 			setProjectsLoading(true);
 			const res = await fetch("/api/projects");
@@ -119,9 +105,9 @@ export function SessionList({
 		} finally {
 			setProjectsLoading(false);
 		}
-	}
+	}, []);
 
-	async function fetchSessions() {
+	const fetchSessions = useCallback(async () => {
 		try {
 			setLoading(true);
 			const params = new URLSearchParams();
@@ -152,7 +138,22 @@ export function SessionList({
 		} finally {
 			setLoading(false);
 		}
-	}
+	}, [selectedProject, dateFilter, searchQuery]);
+
+	const _handleSearchSubmit = useCallback(() => {
+		syncToURL(selectedProject, dateFilter, searchQuery);
+		fetchSessions();
+	}, [selectedProject, dateFilter, searchQuery, syncToURL, fetchSessions]);
+
+	// Fetch projects on mount
+	useEffect(() => {
+		fetchProjects();
+	}, [fetchProjects]);
+
+	// Fetch sessions when dependencies change
+	useEffect(() => {
+		fetchSessions();
+	}, [fetchSessions]);
 
 	return (
 		<div className="session-list-page">

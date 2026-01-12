@@ -67,8 +67,8 @@ function parseHash(hash: string): RouterState {
 	return { page: "sessions", filters };
 }
 
-// Build URL with filters
-export function buildSessionsURL(filters: Partial<URLFilterState>): string {
+// Build URL with filters (used internally by updateFilters)
+function buildSessionsURL(filters: Partial<URLFilterState>): string {
 	const params = new URLSearchParams();
 	if (filters.project) params.set("project", filters.project);
 	if (filters.dateRange && filters.dateRange !== "all")

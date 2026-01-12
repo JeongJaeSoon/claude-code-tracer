@@ -1,6 +1,5 @@
-// Claude Code 공식 도구 목록
-// https://docs.anthropic.com/en/docs/claude-code
-export const TOOL_ICONS: Record<string, string> = {
+// Claude Code 공식 도구 목록 (used internally by getToolIcon)
+const TOOL_ICONS: Record<string, string> = {
 	// 파일 작업
 	read: "R",
 	write: "W",

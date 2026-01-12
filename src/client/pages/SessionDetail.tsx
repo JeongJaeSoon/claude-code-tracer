@@ -26,19 +26,28 @@ export function SessionDetail({
 	const handleSelectItem = useCallback(
 		(item: SelectedItem | null) => {
 			setSelectedItem(item);
-			// Get the ID from the selected item
-			const itemId =
-				item?.turn?.id || item?.step?.id || item?.finalResponse?.id || null;
+			// Get the correct ID based on item type
+			let itemId: string | null = null;
+			if (item) {
+				switch (item.type) {
+					case "step":
+						itemId = item.step?.id ?? null;
+						break;
+					case "finalResponse":
+						itemId = item.finalResponse?.id ?? null;
+						break;
+					case "prompt":
+					case "turn":
+						itemId = item.turn?.id ?? null;
+						break;
+				}
+			}
 			updateSelectedItem(sessionId, itemId);
 		},
 		[sessionId],
 	);
 
-	useEffect(() => {
-		fetchData();
-	}, [sessionId]);
-
-	async function fetchData() {
+	const fetchData = useCallback(async () => {
 		try {
 			const [sessionRes, timelineRes] = await Promise.all([
 				fetch(`/api/sessions/${sessionId}`),
@@ -55,7 +64,11 @@ export function SessionDetail({
 		} finally {
 			setLoading(false);
 		}
-	}
+	}, [sessionId]);
+
+	useEffect(() => {
+		fetchData();
+	}, [fetchData]);
 
 	// Calculate max duration for duration bars
 	const maxDuration = useMemo(() => {

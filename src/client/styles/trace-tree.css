@@ -224,7 +224,7 @@
 }
 
 .assistant-count {
-	color: #10b981 !important;
+	color: #10b981;
 }
 
 /* Steps List */
@@ -306,7 +306,7 @@
 }
 
 .thinking-label {
-	color: #a855f7 !important;
+	color: #a855f7;
 }
 
 /* Assistant Step */
@@ -415,7 +415,7 @@
 }
 
 .final-label {
-	color: #22c55e !important;
+	color: #22c55e;
 	font-weight: 700;
 }
 
