@@ -45,7 +45,6 @@ export function CopyButton({
 				>
 					{iconPath}
 				</svg>
-				<style>{copyButtonStyles}</style>
 			</button>
 		);
 	}
@@ -67,53 +66,6 @@ export function CopyButton({
 				{iconPath}
 			</svg>
 			<span>{copied ? "Copied!" : "Copy"}</span>
-			<style>{copyButtonStyles}</style>
 		</button>
 	);
 }
-
-const copyButtonStyles = `
-  .copy-btn {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 4px 8px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 4px;
-    color: var(--text-muted);
-    font-size: 11px;
-    cursor: pointer;
-    transition: all 0.15s ease;
-  }
-
-  .copy-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: var(--text-secondary);
-    border-color: rgba(255, 255, 255, 0.2);
-  }
-
-  .copy-btn span {
-    font-family: var(--font-mono);
-    font-weight: 500;
-  }
-
-  .copy-btn-compact {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    background: rgba(255, 255, 255, 0.1);
-    border: none;
-    border-radius: 4px;
-    color: rgba(255, 255, 255, 0.6);
-    cursor: pointer;
-    transition: all 0.15s ease;
-  }
-
-  .copy-btn-compact:hover {
-    background: rgba(255, 255, 255, 0.2);
-    color: rgba(255, 255, 255, 0.9);
-  }
-`;

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { SessionDetail } from "./pages/SessionDetail.tsx";
 import { SessionList } from "./pages/SessionList.tsx";
 
@@ -32,6 +32,7 @@ export interface URLFilterState {
 interface RouterState {
 	page: Page;
 	sessionId?: string;
+	selectedItemId?: string;
 	filters: URLFilterState;
 }
 
@@ -48,11 +49,17 @@ function parseHash(hash: string): RouterState {
 		search: params.get("search") || "",
 	};
 
-	// #session/{id} -> session detail
+	// #session/{sessionId}/{itemId?} -> session detail
 	if (path.startsWith("session/")) {
-		const sessionId = path.slice(8); // "session/".length = 8
+		const rest = path.slice(8); // "session/".length = 8
+		const [sessionId, selectedItemId] = rest.split("/");
 		if (sessionId) {
-			return { page: "session", sessionId, filters };
+			return {
+				page: "session",
+				sessionId,
+				selectedItemId: selectedItemId || undefined,
+				filters,
+			};
 		}
 	}
 
@@ -85,6 +92,14 @@ export function navigate(path: string) {
 	window.location.hash = path;
 }
 
+// Update selected item in URL without navigation
+export function updateSelectedItem(sessionId: string, itemId: string | null) {
+	const newHash = itemId
+		? `session/${sessionId}/${itemId}`
+		: `session/${sessionId}`;
+	window.history.replaceState(null, "", `#${newHash}`);
+}
+
 export function App(): JSX.Element {
 	const [theme, setTheme] = useState<Theme>("dark");
 	const [router, setRouter] = useState<RouterState>(() =>
@@ -96,14 +111,31 @@ export function App(): JSX.Element {
 		document.documentElement.dataset.theme = theme;
 	}, [theme]);
 
+	// Track last processed hash to detect external URL changes
+	const lastHashRef = useRef(window.location.hash);
+
 	// Listen for hash changes (browser back/forward, direct navigation)
+	// Also poll for changes that events might miss (e.g., manual URL bar edits)
 	useEffect(() => {
-		const handleHashChange = () => {
-			setRouter(parseHash(window.location.hash));
+		const syncWithUrl = () => {
+			const currentHash = window.location.hash;
+			if (currentHash !== lastHashRef.current) {
+				lastHashRef.current = currentHash;
+				setRouter(parseHash(currentHash));
+			}
 		};
 
-		window.addEventListener("hashchange", handleHashChange);
-		return () => window.removeEventListener("hashchange", handleHashChange);
+		window.addEventListener("hashchange", syncWithUrl);
+		window.addEventListener("popstate", syncWithUrl);
+
+		// Poll for URL changes that events might miss
+		const intervalId = setInterval(syncWithUrl, 200);
+
+		return () => {
+			window.removeEventListener("hashchange", syncWithUrl);
+			window.removeEventListener("popstate", syncWithUrl);
+			clearInterval(intervalId);
+		};
 	}, []);
 
 	return (
@@ -116,18 +148,12 @@ export function App(): JSX.Element {
 					/>
 				)}
 				{router.page === "session" && router.sessionId && (
-					<SessionDetail sessionId={router.sessionId} />
+					<SessionDetail
+						sessionId={router.sessionId}
+						initialItemId={router.selectedItemId}
+					/>
 				)}
 			</div>
-
-			<style>{`
-        .app {
-          display: flex;
-          min-height: 100vh;
-          width: 100vw;
-          background: var(--bg-primary);
-        }
-      `}</style>
 		</ThemeContext.Provider>
 	);
 }

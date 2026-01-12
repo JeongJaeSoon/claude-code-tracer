@@ -27,9 +27,9 @@ export const TOOL_ICONS: Record<string, string> = {
 };
 
 export const TOOL_COLORS: Record<string, string> = {
-	// 파일 작업 - 녹색/청록 계열
+	// 파일 작업 - 녹색/청록/블루 계열
 	read: "#10b981",
-	write: "#a855f7",
+	write: "#f472b6",
 	edit: "#3b82f6",
 	glob: "#06b6d4",
 	grep: "#eab308",
@@ -39,14 +39,14 @@ export const TOOL_COLORS: Record<string, string> = {
 	task: "#ec4899",
 	taskoutput: "#f472b6",
 	killshell: "#ef4444",
-	// 웹 - 인디고 계열
-	webfetch: "#6366f1",
-	websearch: "#818cf8",
+	// 웹 - 시안 계열
+	webfetch: "#22d3ee",
+	websearch: "#67e8f9",
 	// 상호작용 - 다양한 색상
 	askuserquestion: "#f43f5e",
 	todowrite: "#14b8a6",
-	skill: "#8b5cf6",
-	mcpsearch: "#c084fc",
+	skill: "#f59e0b",
+	mcpsearch: "#fb7185",
 	// 플래닝 - 하늘색 계열
 	enterplanmode: "#0ea5e9",
 	exitplanmode: "#38bdf8",
@@ -54,8 +54,8 @@ export const TOOL_COLORS: Record<string, string> = {
 
 // Lane colors for timeline visualization
 export const LANE_COLORS: Record<string, string> = {
-	main: "#8b5cf6",
-	subagent: "#0891b2",
+	main: "#0ea5e9",
+	subagent: "#14b8a6",
 };
 
 export function getToolIcon(toolName: string): string {

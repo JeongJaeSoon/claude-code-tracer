@@ -26,14 +26,31 @@ const MARKDOWN_PATTERNS = [
 ];
 
 const CLI_PATTERNS = [
+	// Shell prompts
 	/^\s*\$\s/m,
+	/^\s*>\s/m,
+	// Unix paths
 	/^(\/[\w\-.]+)+/m,
+	/^~\//m,
+	// Windows paths
 	/^[A-Z]:\\[\w\\]+/m,
-	/^\s*(npm|yarn|bun|git|docker)\s/m,
-	/^(error|warning|info):/im,
+	// Common CLI commands
+	/^\s*(ls|cat|head|tail|grep|find|cd|mkdir|rm|cp|mv|chmod|chown|echo|pwd|curl|wget)\s/m,
+	/^\s*(npm|yarn|bun|pnpm|git|docker|kubectl|make|cargo|go|python|node)\s/m,
+	// Pipe and redirect
+	/\s\|\s/,
+	/\s[<>]{1,2}\s/,
+	// Log prefixes
+	/^(error|warning|info|debug|fatal):/im,
+	// ANSI color codes
 	/\x1b\[[\d;]*m/,
+	// Timestamps
 	/^\d{4}-\d{2}-\d{2}/m,
-	/^[\w\-.]+\s+\d+\s+\w+/m,
+	// File listing (ls -la output)
+	/^[-dlrwx]{10}/m,
+	/^total\s+\d+/m,
+	// Common output patterns
+	/^[\w\-.]+\s+\d+\s+[\w-]+\s+[\w-]+\s+\d+/m,
 ];
 
 function detectContentType(content: string): ContentType {
@@ -41,6 +58,7 @@ function detectContentType(content: string): ContentType {
 
 	const trimmed = content.trim();
 
+	// Check for valid JSON
 	if (
 		(trimmed.startsWith("{") && trimmed.endsWith("}")) ||
 		(trimmed.startsWith("[") && trimmed.endsWith("]"))
@@ -49,7 +67,10 @@ function detectContentType(content: string): ContentType {
 			JSON.parse(trimmed);
 			return "json";
 		} catch {
-			// Not valid JSON, continue detection
+			// Check for JSONL (JSON Lines) - multiple JSON objects concatenated
+			if (trimmed.startsWith("{") && trimmed.includes("}{")) {
+				return "json";
+			}
 		}
 	}
 
@@ -72,10 +93,31 @@ function detectContentType(content: string): ContentType {
 }
 
 function formatJson(content: string): string {
+	const trimmed = content.trim();
+
+	// Try parsing as regular JSON first
 	try {
-		const parsed = JSON.parse(content.trim());
+		const parsed = JSON.parse(trimmed);
 		return JSON.stringify(parsed, null, 2);
 	} catch {
+		// Try formatting as JSONL (JSON Lines)
+		if (trimmed.startsWith("{") && trimmed.includes("}{")) {
+			try {
+				const lines = trimmed.split(/(?<=\})(?=\{)/);
+				return lines
+					.map((line) => {
+						try {
+							const parsed = JSON.parse(line);
+							return JSON.stringify(parsed, null, 2);
+						} catch {
+							return line;
+						}
+					})
+					.join("\n\n");
+			} catch {
+				return content;
+			}
+		}
 		return content;
 	}
 }
@@ -124,9 +166,13 @@ function renderContentBody(
 			);
 		case "cli":
 			return (
-				<div className="smart-cli-output">
-					<pre>{content}</pre>
-				</div>
+				<SyntaxHighlighter
+					style={vscDarkPlus}
+					language="bash"
+					customStyle={HIGHLIGHTER_STYLE}
+				>
+					{content}
+				</SyntaxHighlighter>
 			);
 		case "plain":
 		default:
@@ -155,98 +201,6 @@ export function SmartContentRenderer({
 			<div className="smart-content-body">
 				{renderContentBody(contentType, content, formattedContent, language)}
 			</div>
-			<style>{smartContentStyles}</style>
 		</div>
 	);
 }
-
-const smartContentStyles = `
-  .smart-content {
-    border: 1px solid var(--border-subtle);
-    border-radius: 6px;
-    overflow: hidden;
-    background: var(--bg-primary);
-  }
-
-  .smart-content-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 6px 12px;
-    background: rgba(255, 255, 255, 0.03);
-    border-bottom: 1px solid var(--border-subtle);
-  }
-
-  .content-type-badge {
-    font-family: var(--font-mono);
-    font-size: 9px;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    color: var(--text-muted);
-    background: rgba(255, 255, 255, 0.05);
-    padding: 2px 6px;
-    border-radius: 3px;
-  }
-
-  .smart-content-body {
-    overflow-x: auto;
-  }
-
-  /* Markdown wrapper */
-  .smart-markdown-wrapper {
-    padding: 16px;
-    max-height: 600px;
-    overflow-y: auto;
-  }
-
-  /* CLI output styling */
-  .smart-cli-output {
-    padding: 12px 16px;
-    background: #0d1117;
-  }
-
-  .smart-cli-output pre {
-    font-family: var(--font-mono);
-    font-size: 12px;
-    line-height: 1.5;
-    color: #c9d1d9;
-    margin: 0;
-    white-space: pre-wrap;
-    word-break: break-all;
-  }
-
-  /* Plain text styling */
-  .smart-plain-text {
-    padding: 12px 16px;
-    font-size: 13px;
-    line-height: 1.6;
-    color: var(--text-primary);
-    white-space: pre-wrap;
-    word-break: break-word;
-  }
-
-  /* Special styling for different content types */
-  .smart-content[data-type="json"] .smart-content-header {
-    background: rgba(235, 203, 139, 0.05);
-  }
-
-  .smart-content[data-type="json"] .content-type-badge {
-    color: #ebcb8b;
-  }
-
-  .smart-content[data-type="cli"] .smart-content-header {
-    background: rgba(143, 188, 143, 0.05);
-  }
-
-  .smart-content[data-type="cli"] .content-type-badge {
-    color: #8fbc8f;
-  }
-
-  .smart-content[data-type="markdown"] .smart-content-header {
-    background: rgba(136, 192, 208, 0.05);
-  }
-
-  .smart-content[data-type="markdown"] .content-type-badge {
-    color: #88c0d0;
-  }
-`;

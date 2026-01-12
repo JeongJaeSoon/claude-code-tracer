@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { navigate } from "../App.tsx";
+import { navigate, useTheme } from "../App.tsx";
 import {
 	copyToClipboard,
 	formatDuration,
@@ -27,6 +27,11 @@ export function SessionHeader({
 	stats,
 }: SessionHeaderProps): JSX.Element {
 	const [copiedId, setCopiedId] = useState(false);
+	const { theme, setTheme } = useTheme();
+
+	function toggleTheme() {
+		setTheme(theme === "dark" ? "light" : "dark");
+	}
 
 	async function handleCopyId() {
 		if (!sessionId) return;
@@ -99,130 +104,53 @@ export function SessionHeader({
 							<span className="mini-stat-value">{stats.toolCalls}</span>
 						</div>
 					</div>
+					<button
+						type="button"
+						className="theme-toggle-btn"
+						onClick={toggleTheme}
+						title={
+							theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+						}
+						aria-label="Toggle theme"
+					>
+						{theme === "dark" ? (
+							<svg
+								width="16"
+								height="16"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="2"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+							>
+								<circle cx="12" cy="12" r="5" />
+								<line x1="12" y1="1" x2="12" y2="3" />
+								<line x1="12" y1="21" x2="12" y2="23" />
+								<line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+								<line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+								<line x1="1" y1="12" x2="3" y2="12" />
+								<line x1="21" y1="12" x2="23" y2="12" />
+								<line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+								<line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+							</svg>
+						) : (
+							<svg
+								width="16"
+								height="16"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="2"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+							>
+								<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+							</svg>
+						)}
+					</button>
 				</div>
 			</header>
-
-			<style>{`
-				.session-header {
-					display: flex;
-					align-items: center;
-					justify-content: space-between;
-					padding: var(--space-sm) var(--space-lg);
-					border-bottom: 1px solid var(--border-subtle);
-					background: var(--bg-secondary);
-					flex-shrink: 0;
-					gap: var(--space-lg);
-				}
-
-				.header-left {
-					display: flex;
-					align-items: center;
-					gap: var(--space-md);
-				}
-
-				.session-title {
-					display: flex;
-					align-items: center;
-					gap: var(--space-sm);
-				}
-
-				.session-icon {
-					width: 32px;
-					height: 32px;
-					background: linear-gradient(135deg, var(--accent-primary), #6366f1);
-					border-radius: var(--radius-sm);
-					display: flex;
-					align-items: center;
-					justify-content: center;
-					font-size: 14px;
-					border: none;
-					cursor: pointer;
-					transition: all 0.15s ease;
-				}
-
-				.session-icon:hover {
-					transform: scale(1.05);
-					box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
-				}
-
-				.session-icon span {
-					line-height: 1;
-				}
-
-				.session-name {
-					font-size: 16px;
-					font-weight: 600;
-					color: var(--text-primary);
-				}
-
-				.project-name {
-					font-size: 13px;
-					font-weight: 500;
-					color: var(--text-secondary);
-					padding: var(--space-xs) var(--space-sm);
-					background: var(--bg-tertiary);
-					border-radius: var(--radius-sm);
-				}
-
-				.session-id-btn {
-					display: flex;
-					align-items: center;
-					gap: var(--space-xs);
-					padding: var(--space-xs) var(--space-sm);
-					background: var(--bg-tertiary);
-					border: 1px solid var(--border-subtle);
-					border-radius: var(--radius-sm);
-					color: var(--text-muted);
-					font-family: var(--font-mono);
-					font-size: 11px;
-					cursor: pointer;
-					transition: all 0.15s ease;
-				}
-
-				.session-id-btn:hover {
-					border-color: var(--accent-primary);
-					color: var(--accent-primary);
-				}
-
-				.session-id-btn.copied {
-					background: var(--success);
-					border-color: var(--success);
-					color: white;
-				}
-
-				.header-right {
-					display: flex;
-					align-items: center;
-					gap: var(--space-sm);
-				}
-
-				.session-stats {
-					display: flex;
-					align-items: center;
-					gap: var(--space-md);
-				}
-
-				.mini-stat {
-					display: flex;
-					align-items: center;
-					gap: var(--space-xs);
-				}
-
-				.mini-stat-icon {
-					font-size: 12px;
-				}
-
-				.mini-stat-icon.duration { color: #10b981; }
-				.mini-stat-icon.tokens { color: #3b82f6; }
-				.mini-stat-icon.tools { color: #f97316; }
-
-				.mini-stat-value {
-					font-family: var(--font-mono);
-					font-size: 12px;
-					font-weight: 500;
-					color: var(--text-secondary);
-				}
-			`}</style>
 		</>
 	);
 }

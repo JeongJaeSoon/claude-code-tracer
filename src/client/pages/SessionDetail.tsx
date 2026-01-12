@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { updateSelectedItem } from "../App.tsx";
 import { CollapsibleSidebar } from "../components/CollapsibleSidebar.tsx";
 import { CompactTimeline } from "../components/CompactTimeline.tsx";
 import { DetailPanel } from "../components/DetailPanel.tsx";
@@ -8,14 +9,30 @@ import type { Session, TimelineData } from "../types/timeline.ts";
 
 interface SessionDetailProps {
 	sessionId: string;
+	initialItemId?: string;
 }
 
-export function SessionDetail({ sessionId }: SessionDetailProps): JSX.Element {
+export function SessionDetail({
+	sessionId,
+	initialItemId,
+}: SessionDetailProps): JSX.Element {
 	const [session, setSession] = useState<Session | null>(null);
 	const [timelineData, setTimelineData] = useState<TimelineData | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null);
 	const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+	// Handle item selection and URL update
+	const handleSelectItem = useCallback(
+		(item: SelectedItem | null) => {
+			setSelectedItem(item);
+			// Get the ID from the selected item
+			const itemId =
+				item?.turn?.id || item?.step?.id || item?.finalResponse?.id || null;
+			updateSelectedItem(sessionId, itemId);
+		},
+		[sessionId],
+	);
 
 	useEffect(() => {
 		fetchData();
@@ -55,6 +72,42 @@ export function SessionDetail({ sessionId }: SessionDetailProps): JSX.Element {
 		}
 		return max || 1000;
 	}, [timelineData]);
+
+	// Find and select initial item from URL
+	// Note: selectedItem is intentionally excluded from deps to prevent
+	// overriding user's UI selection when they click items
+	useEffect(() => {
+		if (!timelineData || !initialItemId) return;
+
+		// Search for the item by ID
+		for (const lane of timelineData.lanes) {
+			for (const turn of lane.turns) {
+				// Check turn ID
+				if (turn.id === initialItemId) {
+					setSelectedItem({ type: "prompt", turn, lane });
+					return;
+				}
+				// Check step IDs
+				for (const step of turn.steps) {
+					if (step.id === initialItemId) {
+						setSelectedItem({ type: "step", step, turn, lane });
+						return;
+					}
+				}
+				// Check final response ID
+				if (turn.finalResponse?.id === initialItemId) {
+					setSelectedItem({
+						type: "finalResponse",
+						finalResponse: turn.finalResponse,
+						turn,
+						lane,
+					});
+					return;
+				}
+			}
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [timelineData, initialItemId]);
 
 	if (loading) {
 		return (
@@ -102,7 +155,7 @@ export function SessionDetail({ sessionId }: SessionDetailProps): JSX.Element {
 						<TraceTree
 							data={timelineData}
 							maxDuration={maxDuration}
-							onSelect={setSelectedItem}
+							onSelect={handleSelectItem}
 							selectedItem={selectedItem}
 						/>
 					) : (
@@ -117,7 +170,7 @@ export function SessionDetail({ sessionId }: SessionDetailProps): JSX.Element {
 						{timelineData ? (
 							<CompactTimeline
 								data={timelineData}
-								onSelect={setSelectedItem}
+								onSelect={handleSelectItem}
 								selectedItem={selectedItem}
 							/>
 						) : (
@@ -131,96 +184,6 @@ export function SessionDetail({ sessionId }: SessionDetailProps): JSX.Element {
 					</section>
 				</main>
 			</div>
-
-			<style>{`
-        .session-detail-v2 {
-          display: flex;
-          flex-direction: column;
-          height: 100vh;
-          width: 100%;
-          overflow: hidden;
-        }
-
-        .btn {
-          display: inline-flex;
-          align-items: center;
-          gap: var(--space-xs);
-          padding: var(--space-sm) var(--space-md);
-          border-radius: var(--radius-sm);
-          font-size: 13px;
-          font-weight: 500;
-          border: none;
-          cursor: pointer;
-          transition: all 0.15s ease;
-          font-family: var(--font-sans);
-        }
-
-        .btn-primary {
-          background: var(--accent-primary);
-          color: white;
-        }
-
-        /* Content Wrapper */
-        .content-wrapper {
-          flex: 1;
-          display: flex;
-          overflow: hidden;
-        }
-
-        /* Main Area */
-        .main-area {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          overflow: hidden;
-          min-width: 0;
-        }
-
-        /* Compact Timeline Section */
-        .compact-timeline-section {
-          border-bottom: 1px solid var(--border-subtle);
-          flex-shrink: 0;
-        }
-
-        /* Detail Section */
-        .detail-section {
-          flex: 1;
-          overflow: hidden;
-        }
-
-        /* Loading & Error States */
-        .loading-container, .error-container {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          height: 100vh;
-          gap: var(--space-md);
-          color: var(--text-tertiary);
-        }
-
-        .loading-spinner {
-          width: 32px;
-          height: 32px;
-          border: 3px solid var(--border-subtle);
-          border-top-color: var(--accent-primary);
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-
-        .loading-panel {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          height: 100%;
-          color: var(--text-muted);
-          font-size: 13px;
-        }
-      `}</style>
 		</div>
 	);
 }

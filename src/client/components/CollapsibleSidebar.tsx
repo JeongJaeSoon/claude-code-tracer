@@ -62,67 +62,6 @@ export function CollapsibleSidebar({
 			>
 				<ChevronIcon collapsed={collapsed} />
 			</button>
-
-			<style>{`
-        .collapsible-sidebar {
-          width: 320px;
-          min-width: 320px;
-          background: var(--bg-secondary);
-          border-right: 1px solid var(--border-subtle);
-          display: flex;
-          flex-direction: column;
-          position: relative;
-          transition: width 0.25s ease, min-width 0.25s ease;
-          flex-shrink: 0;
-        }
-
-        .collapsible-sidebar.collapsed {
-          width: 48px;
-          min-width: 48px;
-        }
-
-        .sidebar-header-collapsed {
-          padding: var(--space-sm) var(--space-md);
-          border-bottom: 1px solid var(--border-subtle);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          min-height: 41px;
-          flex-shrink: 0;
-          color: var(--text-muted);
-        }
-
-        .sidebar-content {
-          flex: 1;
-          overflow-y: auto;
-          overflow-x: hidden;
-        }
-
-        .sidebar-toggle {
-          position: absolute;
-          right: -14px;
-          top: 50%;
-          transform: translateY(-50%);
-          width: 28px;
-          height: 28px;
-          background: var(--bg-elevated);
-          border: 1px solid var(--border-default);
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          color: var(--text-muted);
-          transition: all 0.15s ease;
-          z-index: 10;
-        }
-
-        .sidebar-toggle:hover {
-          color: var(--text-primary);
-          background: var(--bg-hover);
-          border-color: var(--accent-primary);
-        }
-      `}</style>
 		</aside>
 	);
 }
