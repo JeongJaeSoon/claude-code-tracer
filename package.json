@@ -14,7 +14,11 @@
 		"check": "biome check --write .",
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "drizzle-kit migrate",
-		"db:studio": "drizzle-kit studio"
+		"db:studio": "drizzle-kit studio",
+		"analyze:duplicates": "jscpd src",
+		"analyze:unused": "knip",
+		"analyze:deps": "madge --circular --extensions ts,tsx src/",
+		"analyze:all": "bun run analyze:duplicates && bun run analyze:unused && bun run analyze:deps"
 	},
 	"dependencies": {
 		"drizzle-orm": "^0.36.0",
@@ -33,6 +37,9 @@
 		"@types/react-syntax-highlighter": "^15.5.13",
 		"@vitejs/plugin-react": "^4.3.0",
 		"drizzle-kit": "^0.30.0",
+		"jscpd": "^4.0.7",
+		"knip": "^5.80.2",
+		"madge": "^8.0.0",
 		"typescript": "^5.6.0",
 		"vite": "^6.0.0"
 	}

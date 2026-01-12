@@ -1,0 +1,6 @@
+{
+	"entry": ["src/server/index.ts", "src/client/main.tsx"],
+	"project": ["src/**/*.{ts,tsx}"],
+	"ignore": ["**/*.d.ts"],
+	"ignoreDependencies": ["@types/*"]
+}
