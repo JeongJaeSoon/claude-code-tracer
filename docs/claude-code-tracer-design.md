@@ -624,31 +624,40 @@ claude-code-tracer/
 │   │   ├── db/
 │   │   │   ├── schema.ts      # drizzle 스키마 (sessions, toolCalls, messages)
 │   │   │   └── client.ts      # DB 연결 및 초기화
-│   │   └── services/
-│   │       └── parser.ts      # JSONL → DB 모델 변환
+│   │   ├── services/
+│   │   │   ├── parser.ts          # JSONL → DB 모델 변환
+│   │   │   ├── ingestHelpers.ts   # Ingest 헬퍼 (upsert, insert)
+│   │   │   └── sessionEnrichment.ts # 세션 데이터 보강 (firstPrompt, toolTypes)
+│   │   └── utils/
+│   │       └── dateFilters.ts     # 날짜/기간 필터 유틸
 │   │
 │   └── client/                # 프론트엔드 (React)
 │       ├── index.html
 │       ├── main.tsx
-│       ├── App.tsx            # 라우터 + 테마 Context
+│       ├── App.tsx            # 라우터 설정
 │       ├── pages/
-│       │   ├── ProjectList.tsx    # 프로젝트별 세션 그룹핑 (메인 페이지)
-│       │   ├── SessionList.tsx    # 세션 목록 (대체 뷰)
+│       │   ├── SessionList.tsx    # 세션 목록 + 프로젝트 사이드바 (메인 페이지)
 │       │   └── SessionDetail.tsx  # 세션 상세 + Timeline
 │       ├── components/
-│       │   ├── Sidebar.tsx            # 네비게이션 + 테마 토글
+│       │   ├── CollapsibleSidebar.tsx # 접이식 네비게이션 사이드바
+│       │   ├── ProjectSidebar.tsx     # 프로젝트 목록 사이드바
+│       │   ├── SessionHeader.tsx      # 세션 헤더 (공유 컴포넌트)
 │       │   ├── TraceTree.tsx          # Turn 기반 트레이스 트리 (핵심)
 │       │   ├── DetailPanel.tsx        # 선택 항목 상세 정보
 │       │   ├── CompactTimeline.tsx    # 타임라인 시각화
-│       │   ├── FilterBar.tsx          # 검색/필터 UI
 │       │   ├── SmartContentRenderer.tsx # 콘텐츠 렌더링
-│       │   └── MarkdownRenderer.tsx   # 마크다운 + 코드 하이라이팅
+│       │   ├── MarkdownRenderer.tsx   # 마크다운 + 코드 하이라이팅
+│       │   ├── CopyButton.tsx         # 복사 버튼
+│       │   └── syntaxHighlighter.ts   # 코드 하이라이팅 설정
+│       ├── contexts/
+│       │   └── ThemeContext.tsx   # 테마 Context Provider
 │       ├── types/
 │       │   └── timeline.ts        # Timeline 데이터 타입
 │       ├── constants/
 │       │   └── tools.ts           # 도구 아이콘/색상 매핑
 │       ├── utils/
-│       │   └── format.ts          # 포맷팅 유틸리티
+│       │   ├── format.ts          # 포맷팅 유틸리티
+│       │   └── router.ts          # URL 상태 동기화 유틸
 │       └── styles/
 │           └── global.css         # 전역 스타일 + 테마 변수
 │
@@ -751,7 +760,7 @@ claude-code-tracer/
 
 ---
 
-## 14. 현재 구현 상태 (2026-01-11 기준)
+## 14. 현재 구현 상태 (2026-01-13 기준)
 
 ### 구현 완료 항목
 
@@ -768,20 +777,23 @@ claude-code-tracer/
 | `GET /api/projects/stats` | 프로젝트 통계 | - | ✅ |
 | `GET /api/projects/:name/sessions` | 프로젝트별 세션 목록 | 페이지네이션 | ✅ |
 | `GET /api/timeline/:sessionId` | Turn 기반 Timeline 데이터 | Lane 분리 | ✅ |
+| `GET /api/timeline/:sessionId/colors` | 도구 색상 정보 | - | ✅ |
 | `GET /api/health` | 서버 상태 | - | ✅ |
 
 #### Frontend 컴포넌트
 | 컴포넌트 | 설명 | 라인 수 | 상태 |
 |---------|------|--------|------|
-| `ProjectList` | 프로젝트별 세션 그룹핑 (메인 페이지) | ~700 | ✅ |
-| `SessionDetail` | 세션 상세 + Timeline | ~480 | ✅ |
-| `TraceTree` | Turn 기반 트레이스 트리 (핵심 시각화) | ~810 | ✅ |
-| `DetailPanel` | 선택 항목 상세 (Run/Input/Output/Metadata 탭) | ~760 | ✅ |
-| `CompactTimeline` | 타임라인 시각화 | ~850 | ✅ |
-| `FilterBar` | 검색/필터 UI | ~310 | ✅ |
-| `Sidebar` | 네비게이션 + 테마 토글 | ~280 | ✅ |
-| `SmartContentRenderer` | 콘텐츠 렌더링 | ~250 | ✅ |
-| `MarkdownRenderer` | 마크다운 + 코드 하이라이팅 | ~300 | ✅ |
+| `SessionList` | 세션 목록 + 프로젝트 사이드바 (메인 페이지) | ~270 | ✅ |
+| `SessionDetail` | 세션 상세 + Timeline | ~200 | ✅ |
+| `TraceTree` | Turn 기반 트레이스 트리 (핵심 시각화) | ~345 | ✅ |
+| `DetailPanel` | 선택 항목 상세 (Input/Output 탭) | ~260 | ✅ |
+| `CompactTimeline` | 타임라인 시각화 | ~500 | ✅ |
+| `CollapsibleSidebar` | 접이식 네비게이션 사이드바 | ~70 | ✅ |
+| `ProjectSidebar` | 프로젝트 목록 사이드바 | ~70 | ✅ |
+| `SessionHeader` | 세션 헤더 (공유 컴포넌트) | ~180 | ✅ |
+| `SmartContentRenderer` | 콘텐츠 렌더링 | ~205 | ✅ |
+| `MarkdownRenderer` | 마크다운 + 코드 하이라이팅 | ~100 | ✅ |
+| `CopyButton` | 복사 버튼 | ~70 | ✅ |
 
 #### JSONL 파서
 | 기능 | 상태 |
@@ -793,12 +805,27 @@ claude-code-tracer/
 | Sub-agent 파일 자동 탐색 | ✅ |
 | 토큰 집계 (input, output, cache) | ✅ |
 
-### 제거된 항목 (2026-01-11)
+### 최근 변경사항 (2026-01-11 ~ 01-13)
 
-| 항목 | 파일/패키지 | 제거 이유 |
-|------|------------|----------|
-| Flamegraph API | `flamegraph.ts` | TraceTree로 대체, 미사용 |
-| flame-chart-js | npm 의존성 | 코드에서 미사용 |
+| 변경 | 설명 |
+|------|------|
+| Tracer 브랜딩 | 커스텀 로고, 파비콘 적용 |
+| URL 상태 동기화 | 세션 상세 페이지 URL 파라미터로 상태 유지 |
+| 도구 dots 시각화 | 세션 목록에서 사용된 도구 미리보기 |
+| 순환 의존성 해결 | client 코드 구조 개선 |
+| 코드 간소화 | 컴포넌트별 30~60% 라인 수 감소 |
+| 공유 컴포넌트 | SessionHeader 추출하여 재사용 |
+| 코드 분석 도구 | jscpd, knip, madge 추가 |
+
+### 제거된 항목
+
+| 항목 | 제거 이유 |
+|------|----------|
+| Flamegraph API (`flamegraph.ts`) | TraceTree로 대체 |
+| flame-chart-js (npm 의존성) | 코드에서 미사용 |
+| `ProjectList.tsx` | SessionList로 통합 |
+| `FilterBar.tsx` | SessionList에 통합 |
+| `Sidebar.tsx` | CollapsibleSidebar + ProjectSidebar로 분리 |
 
 ### 선택적 개선 항목
 
@@ -816,6 +843,7 @@ claude-code-tracer/
 | 시각화 방식 | Flamegraph | TraceTree | Turn 기반 UX가 더 직관적 |
 | 라이브러리 | flame-chart-js | 커스텀 React | 프로젝트 요구사항에 맞춤 |
 | 데이터 구조 | UUID 트리 | Lane → Turn → Step | Sub-agent 분리 표시 |
+| 메인 페이지 | ProjectList 별도 | SessionList 통합 | 페이지 통합으로 UX 개선 |
 | DB | SQLite | SQLite | 계획대로 |
 | ORM | drizzle-orm | drizzle-orm | 계획대로 |
 
@@ -826,36 +854,45 @@ src/
 ├── server/
 │   ├── index.ts              # Hono 서버 엔트리
 │   ├── routes/
-│   │   ├── ingest.ts         # ~236 lines
-│   │   ├── sessions.ts       # ~248 lines
-│   │   ├── projects.ts       # ~182 lines
-│   │   └── timeline.ts       # ~380 lines
+│   │   ├── ingest.ts         # ~144 lines
+│   │   ├── sessions.ts       # ~225 lines
+│   │   ├── projects.ts       # ~175 lines
+│   │   └── timeline.ts       # ~367 lines
 │   ├── db/
-│   │   ├── schema.ts         # ~71 lines
-│   │   └── client.ts         # ~75 lines
-│   └── services/
-│       └── parser.ts         # ~260 lines
+│   │   ├── schema.ts
+│   │   └── client.ts
+│   ├── services/
+│   │   ├── parser.ts
+│   │   ├── ingestHelpers.ts
+│   │   └── sessionEnrichment.ts
+│   └── utils/
+│       └── dateFilters.ts
 │
 └── client/
-    ├── App.tsx               # 라우터 + 테마
+    ├── App.tsx               # 라우터 설정
     ├── pages/
-    │   ├── ProjectList.tsx   # ~708 lines
-    │   ├── SessionList.tsx   # ~599 lines
-    │   └── SessionDetail.tsx # ~474 lines
+    │   ├── SessionList.tsx   # ~271 lines (메인)
+    │   └── SessionDetail.tsx # ~200 lines
     ├── components/
-    │   ├── Sidebar.tsx           # ~280 lines
-    │   ├── TraceTree.tsx         # ~814 lines (핵심)
-    │   ├── DetailPanel.tsx       # ~765 lines
-    │   ├── CompactTimeline.tsx   # ~853 lines
-    │   ├── FilterBar.tsx         # ~314 lines
-    │   ├── SmartContentRenderer.tsx # ~253 lines
-    │   └── MarkdownRenderer.tsx  # ~301 lines
+    │   ├── CollapsibleSidebar.tsx # ~67 lines
+    │   ├── ProjectSidebar.tsx     # ~67 lines
+    │   ├── SessionHeader.tsx      # ~183 lines
+    │   ├── TraceTree.tsx          # ~345 lines (핵심)
+    │   ├── DetailPanel.tsx        # ~259 lines
+    │   ├── CompactTimeline.tsx    # ~499 lines
+    │   ├── SmartContentRenderer.tsx # ~205 lines
+    │   ├── MarkdownRenderer.tsx   # ~103 lines
+    │   ├── CopyButton.tsx         # ~71 lines
+    │   └── syntaxHighlighter.ts   # 코드 하이라이팅 설정
+    ├── contexts/
+    │   └── ThemeContext.tsx  # 테마 Context
     ├── types/
     │   └── timeline.ts       # 타입 정의
     ├── constants/
     │   └── tools.ts          # 도구 아이콘/색상
     ├── utils/
-    │   └── format.ts         # 포맷팅 유틸
+    │   ├── format.ts         # 포맷팅 유틸
+    │   └── router.ts         # URL 상태 동기화
     └── styles/
         └── global.css        # 전역 스타일
 ```
