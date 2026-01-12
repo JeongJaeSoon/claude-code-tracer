@@ -157,7 +157,6 @@ export function SessionList({
 	return (
 		<div className="session-list-page">
 			<SessionHeader
-				title="Claude Code Tracer"
 				stats={{
 					durationMs: stats?.avgDurationMs ?? 0,
 					tokens: stats

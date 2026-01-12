@@ -1,3 +1,4 @@
+import type { ReactElement } from "react";
 import { useState } from "react";
 import { navigate, useTheme } from "../App.tsx";
 import {
@@ -7,6 +8,29 @@ import {
 	formatTokens,
 } from "../utils/format.ts";
 
+// Tracer logo - clean activity/pulse icon
+function TracerLogo(): ReactElement {
+	return (
+		<svg
+			width="20"
+			height="20"
+			viewBox="0 0 24 24"
+			fill="none"
+			xmlns="http://www.w3.org/2000/svg"
+			className="tracer-logo-svg"
+			aria-hidden="true"
+		>
+			<path
+				d="M22 12h-4l-3 9L9 3l-3 9H2"
+				stroke="currentColor"
+				strokeWidth="2"
+				strokeLinecap="round"
+				strokeLinejoin="round"
+			/>
+		</svg>
+	);
+}
+
 interface SessionHeaderStats {
 	durationMs: number;
 	tokens: number;
@@ -14,14 +38,12 @@ interface SessionHeaderStats {
 }
 
 interface SessionHeaderProps {
-	title: string;
 	projectName?: string;
 	sessionId?: string;
 	stats: SessionHeaderStats;
 }
 
 export function SessionHeader({
-	title,
 	projectName,
 	sessionId,
 	stats,
@@ -50,18 +72,24 @@ export function SessionHeader({
 		<>
 			<header className="session-header">
 				<div className="header-left">
-					<div className="session-title">
-						<button
-							type="button"
-							className="session-icon"
-							onClick={handleHomeClick}
-							title="Go to home"
-						>
-							<span>&#9889;</span>
-						</button>
-						<span className="session-name">{title}</span>
-					</div>
-					{projectName && <span className="project-name">{projectName}</span>}
+					{/* Brand Logo */}
+					<button
+						type="button"
+						className="brand-logo"
+						onClick={handleHomeClick}
+						title="Go to home"
+					>
+						<TracerLogo />
+						<span className="brand-name">Tracer</span>
+					</button>
+
+					{/* Project Context */}
+					{projectName && (
+						<div className="project-context">
+							<span className="context-divider" />
+							<span className="project-name">{projectName}</span>
+						</div>
+					)}
 					{sessionId && (
 						<button
 							type="button"

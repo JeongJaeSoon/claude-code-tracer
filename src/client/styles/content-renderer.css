@@ -248,8 +248,6 @@
 /* Markdown wrapper */
 .smart-markdown-wrapper {
 	padding: 16px;
-	max-height: 600px;
-	overflow-y: auto;
 }
 
 /* CLI output styling */

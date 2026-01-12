@@ -279,11 +279,6 @@
 	background: rgba(168, 85, 247, 0.05);
 }
 
-.output-preview {
-	max-height: 150px;
-	overflow-y: auto;
-}
-
 .empty-output {
 	font-size: 13px;
 	color: var(--text-muted);

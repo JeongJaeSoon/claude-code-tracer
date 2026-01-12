@@ -16,42 +16,57 @@
 .header-left {
 	display: flex;
 	align-items: center;
-	gap: var(--space-md);
+	gap: var(--space-sm);
 }
 
-.session-title {
+/* Brand Logo Button */
+.brand-logo {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 12px 6px 8px;
+	background: transparent;
+	border: 1px solid transparent;
+	border-radius: var(--radius-md);
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+.brand-logo:hover {
+	background: var(--bg-tertiary);
+	border-color: var(--border-subtle);
+}
+
+.tracer-logo-svg {
+	color: var(--accent-primary);
+	transition: transform 0.15s ease;
+}
+
+.brand-logo:hover .tracer-logo-svg {
+	transform: scale(1.1);
+}
+
+/* Brand Name */
+.brand-name {
+	font-family: var(--font-mono);
+	font-size: 16px;
+	font-weight: 700;
+	letter-spacing: -0.02em;
+	color: var(--text-primary);
+}
+
+/* Project Context */
+.project-context {
 	display: flex;
 	align-items: center;
 	gap: var(--space-sm);
 }
 
-.session-icon {
-	width: 32px;
-	height: 32px;
-	background: linear-gradient(135deg, var(--accent-primary), #6366f1);
-	border-radius: var(--radius-sm);
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	font-size: 14px;
-	border: none;
-	cursor: pointer;
-	transition: all 0.15s ease;
-}
-
-.session-icon:hover {
-	transform: scale(1.05);
-	box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
-}
-
-.session-icon span {
-	line-height: 1;
-}
-
-.session-name {
-	font-size: 16px;
-	font-weight: 600;
-	color: var(--text-primary);
+.context-divider {
+	width: 1px;
+	height: 20px;
+	background: var(--border-default);
+	margin-left: var(--space-xs);
 }
 
 .project-name {

@@ -135,7 +135,6 @@ export function SessionDetail({
 	return (
 		<div className="session-detail-v2">
 			<SessionHeader
-				title="Claude Code Tracer"
 				projectName={session.projectName}
 				sessionId={sessionId}
 				stats={{
