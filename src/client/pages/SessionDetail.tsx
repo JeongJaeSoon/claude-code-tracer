@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { updateSelectedItem } from "../App.tsx";
 import { CollapsibleSidebar } from "../components/CollapsibleSidebar.tsx";
+import { updateSelectedItem } from "../utils/router.ts";
 import { CompactTimeline } from "../components/CompactTimeline.tsx";
 import { DetailPanel } from "../components/DetailPanel.tsx";
 import { SessionHeader } from "../components/SessionHeader.tsx";

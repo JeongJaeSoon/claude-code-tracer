@@ -1,33 +1,11 @@
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { ThemeProvider } from "./contexts/ThemeContext.tsx";
 import { SessionDetail } from "./pages/SessionDetail.tsx";
 import { SessionList } from "./pages/SessionList.tsx";
-
-// Theme context
-type Theme = "dark" | "light";
-
-interface ThemeContextType {
-	theme: Theme;
-	setTheme: (theme: Theme) => void;
-}
-
-const ThemeContext = createContext<ThemeContextType>({
-	theme: "dark",
-	setTheme: () => {},
-});
-
-export function useTheme() {
-	return useContext(ThemeContext);
-}
+import { navigate, type URLFilterState } from "./utils/router.ts";
 
 // Router state - hash-based routing
 type Page = "sessions" | "session";
-
-// Filter state from URL
-export interface URLFilterState {
-	project: string | null;
-	dateRange: "all" | "today" | "week";
-	search: string;
-}
 
 interface RouterState {
 	page: Page;
@@ -67,49 +45,10 @@ function parseHash(hash: string): RouterState {
 	return { page: "sessions", filters };
 }
 
-// Build URL with filters (used internally by updateFilters)
-function buildSessionsURL(filters: Partial<URLFilterState>): string {
-	const params = new URLSearchParams();
-	if (filters.project) params.set("project", filters.project);
-	if (filters.dateRange && filters.dateRange !== "all")
-		params.set("date", filters.dateRange);
-	if (filters.search) params.set("search", filters.search);
-
-	const queryString = params.toString();
-	return queryString ? `sessions?${queryString}` : "sessions";
-}
-
-// Update URL without adding to history (for filter changes)
-export function updateFilters(filters: Partial<URLFilterState>) {
-	const newHash = buildSessionsURL(filters);
-	window.history.replaceState(null, "", `#${newHash}`);
-	// Dispatch custom event for components to react
-	window.dispatchEvent(new CustomEvent("filterschange", { detail: filters }));
-}
-
-// Global navigate function
-export function navigate(path: string) {
-	window.location.hash = path;
-}
-
-// Update selected item in URL without navigation
-export function updateSelectedItem(sessionId: string, itemId: string | null) {
-	const newHash = itemId
-		? `session/${sessionId}/${itemId}`
-		: `session/${sessionId}`;
-	window.history.replaceState(null, "", `#${newHash}`);
-}
-
 export function App(): JSX.Element {
-	const [theme, setTheme] = useState<Theme>("dark");
 	const [router, setRouter] = useState<RouterState>(() =>
 		parseHash(window.location.hash),
 	);
-
-	// Apply theme to document
-	useEffect(() => {
-		document.documentElement.dataset.theme = theme;
-	}, [theme]);
 
 	// Track last processed hash to detect external URL changes
 	const lastHashRef = useRef(window.location.hash);
@@ -139,7 +78,7 @@ export function App(): JSX.Element {
 	}, []);
 
 	return (
-		<ThemeContext.Provider value={{ theme, setTheme }}>
+		<ThemeProvider>
 			<div className="app">
 				{router.page === "sessions" && (
 					<SessionList
@@ -154,6 +93,6 @@ export function App(): JSX.Element {
 					/>
 				)}
 			</div>
-		</ThemeContext.Provider>
+		</ThemeProvider>
 	);
 }

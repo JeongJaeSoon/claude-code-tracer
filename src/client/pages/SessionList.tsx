@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { type URLFilterState, updateFilters } from "../App.tsx";
 import { type Project, ProjectSidebar } from "../components/ProjectSidebar.tsx";
+import { type URLFilterState, updateFilters } from "../utils/router.ts";
 import { SessionHeader } from "../components/SessionHeader.tsx";
 import type { Session } from "../types/timeline.ts";
 import {

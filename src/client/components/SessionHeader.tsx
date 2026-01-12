@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { navigate, useTheme } from "../App.tsx";
+import { useTheme } from "../contexts/ThemeContext.tsx";
+import { navigate } from "../utils/router.ts";
 import {
 	copyToClipboard,
 	formatDuration,
