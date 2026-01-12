@@ -51,12 +51,6 @@ export const TOOL_COLORS: Record<string, string> = {
 	exitplanmode: "#38bdf8",
 };
 
-// Lane colors for timeline visualization
-export const LANE_COLORS: Record<string, string> = {
-	main: "#0ea5e9",
-	subagent: "#14b8a6",
-};
-
 export function getToolIcon(toolName: string): string {
 	return TOOL_ICONS[toolName.toLowerCase()] || toolName.charAt(0).toUpperCase();
 }

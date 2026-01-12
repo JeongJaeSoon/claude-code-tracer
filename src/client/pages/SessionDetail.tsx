@@ -119,7 +119,6 @@ export function SessionDetail({
 				}
 			}
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [timelineData, initialItemId]);
 
 	if (loading) {

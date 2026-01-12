@@ -13,7 +13,7 @@ export interface SessionEnrichment {
 /**
  * Fetch first user prompts for given session IDs
  */
-export async function getFirstPromptsBySession(
+async function getFirstPromptsBySession(
 	sessionIds: string[],
 ): Promise<Record<string, string>> {
 	if (sessionIds.length === 0) {
@@ -49,7 +49,7 @@ export async function getFirstPromptsBySession(
 /**
  * Fetch tool types used in each session
  */
-export async function getToolTypesBySession(
+async function getToolTypesBySession(
 	sessionIds: string[],
 ): Promise<Record<string, string[]>> {
 	if (sessionIds.length === 0) {

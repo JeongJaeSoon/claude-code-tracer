@@ -10,15 +10,6 @@ import {
 } from "../db/schema.ts";
 
 /**
- * Result from parsing JSONL data
- */
-export interface ParsedSessionData {
-	session: NewSession;
-	toolCalls: NewToolCall[];
-	messages: NewMessage[];
-}
-
-/**
  * Upsert session data (insert or update on conflict)
  */
 export async function upsertSession(session: NewSession): Promise<void> {
