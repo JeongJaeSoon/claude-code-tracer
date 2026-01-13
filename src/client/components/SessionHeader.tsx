@@ -1,13 +1,13 @@
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useTheme } from "../contexts/ThemeContext.tsx";
-import { navigate } from "../utils/router.ts";
 import {
 	copyToClipboard,
 	formatDuration,
 	formatSessionId,
 	formatTokens,
 } from "../utils/format.ts";
+import { navigate } from "../utils/router.ts";
 
 // Tracer logo - clean activity/pulse icon
 function TracerLogo(): ReactElement {
