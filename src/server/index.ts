@@ -3,46 +3,64 @@ import { serveStatic } from "hono/bun";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 
-import { ingestRoutes } from "./routes/ingest.ts";
-import { projectsRoutes } from "./routes/projects.ts";
-import { sessionsRoutes } from "./routes/sessions.ts";
-import { timelineRoutes } from "./routes/timeline.ts";
+import type { IRepository } from "./repositories/types.ts";
+import { createIngestRoutes } from "./routes/ingest.ts";
+import { createProjectsRoutes } from "./routes/projects.ts";
+import { createSessionsRoutes } from "./routes/sessions.ts";
+import { createTimelineRoutes } from "./routes/timeline.ts";
 
-const app = new Hono();
-
-// Middleware
-app.use("*", logger());
-app.use(
-	"*",
-	cors({
-		origin: ["http://localhost:5173", "http://localhost:8080"],
-		allowMethods: ["GET", "POST", "PUT", "DELETE"],
-	}),
-);
-
-// API Routes
-app.route("/api/ingest", ingestRoutes);
-app.route("/api/sessions", sessionsRoutes);
-app.route("/api/projects", projectsRoutes);
-app.route("/api/timeline", timelineRoutes);
-
-// Health check
-app.get("/api/health", (c) =>
-	c.json({ status: "ok", timestamp: new Date().toISOString() }),
-);
-
-// Serve static files in production only
-const isProduction = process.env.NODE_ENV === "production";
-if (isProduction) {
-	app.use("/*", serveStatic({ root: "./dist/client" }));
-	app.get("/*", serveStatic({ root: "./dist/client", path: "index.html" }));
+/**
+ * 서버 설정 인터페이스
+ */
+export interface ServerConfig {
+	mode: "local" | "server";
+	port: number;
+	repository: IRepository;
 }
 
-const port = Number(process.env.PORT) || 8080;
+/**
+ * Hono 앱 팩토리 함수
+ * 모드에 따라 다른 라우트 구성을 제공합니다.
+ */
+export function createApp(config: ServerConfig) {
+	const app = new Hono();
+	const { repository, mode, port } = config;
 
-console.log(`🔥 Claude Code Tracer server running at http://localhost:${port}`);
+	// Middleware
+	app.use("*", logger());
+	app.use(
+		"*",
+		cors({
+			origin: ["http://localhost:5173", `http://localhost:${port}`],
+			allowMethods: ["GET", "POST", "PUT", "DELETE"],
+		}),
+	);
 
-export default {
-	port,
-	fetch: app.fetch,
-};
+	// API Routes
+	// Ingest route only available in server mode
+	if (mode === "server") {
+		app.route("/api/ingest", createIngestRoutes(repository));
+	}
+	app.route("/api/sessions", createSessionsRoutes(repository, mode));
+	app.route("/api/projects", createProjectsRoutes(repository));
+	app.route("/api/timeline", createTimelineRoutes(repository));
+
+	// Health check
+	app.get("/api/health", (c) =>
+		c.json({ status: "ok", mode, timestamp: new Date().toISOString() }),
+	);
+
+	// Serve static files in production
+	app.use("/assets/*", serveStatic({ root: "./dist/client" }));
+
+	// SPA fallback - serve index.html for all non-API routes
+	app.get("/*", async (c) => {
+		const file = Bun.file("./dist/client/index.html");
+		if (await file.exists()) {
+			return c.html(await file.text());
+		}
+		return c.text("Frontend not found. Run 'bun run build' first.", 404);
+	});
+
+	return app;
+}

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import { type Project, ProjectSidebar } from "../components/ProjectSidebar.tsx";
-import { type URLFilterState, updateFilters } from "../utils/router.ts";
 import { SessionHeader } from "../components/SessionHeader.tsx";
 import type { Session } from "../types/timeline.ts";
 import {
@@ -9,6 +8,7 @@ import {
 	formatSessionId,
 	formatTokens,
 } from "../utils/format.ts";
+import { type URLFilterState, updateFilters } from "../utils/router.ts";
 
 // Clean up prompt text for display
 function cleanPrompt(text: string): string | null {

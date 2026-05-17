@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CollapsibleSidebar } from "../components/CollapsibleSidebar.tsx";
-import { updateSelectedItem } from "../utils/router.ts";
 import { CompactTimeline } from "../components/CompactTimeline.tsx";
 import { DetailPanel } from "../components/DetailPanel.tsx";
 import { SessionHeader } from "../components/SessionHeader.tsx";
 import { type SelectedItem, TraceTree } from "../components/TraceTree.tsx";
 import type { Session, TimelineData } from "../types/timeline.ts";
+import { updateSelectedItem } from "../utils/router.ts";
 
 interface SessionDetailProps {
 	sessionId: string;
